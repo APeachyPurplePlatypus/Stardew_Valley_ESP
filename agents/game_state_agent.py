@@ -53,6 +53,37 @@ DEFAULT_SAVES_DIR = Path(os.path.expandvars(r"%APPDATA%\StardewValley\Saves"))
 SEASONS = {0: "Spring", 1: "Summer", 2: "Fall", 3: "Winter"}
 SEASON_NAMES = {"spring": "Spring", "summer": "Summer", "fall": "Fall", "winter": "Winter"}
 
+XP_THRESHOLDS = [0, 100, 380, 770, 1300, 2150, 3300, 4800, 6900, 10000, 15000]
+SKILL_NAMES   = ["Farming", "Fishing", "Foraging", "Mining", "Combat", "Luck"]
+
+PROFESSION_NAMES = {
+    0: "Rancher",     1: "Tiller",       2: "Coopmaster",  3: "Shepherd",
+    4: "Artisan",     5: "Agriculturist", 6: "Fisher",      7: "Trapper",
+    8: "Angler",      9: "Pirate",       10: "Mariner",    11: "Luremaster",
+    12: "Forester",  13: "Gatherer",     14: "Lumberjack", 15: "Tapper",
+    16: "Botanist",  17: "Tracker",      18: "Miner",      19: "Geologist",
+    20: "Blacksmith",21: "Prospector",   22: "Excavator",  23: "Gemologist",
+    24: "Fighter",   25: "Scout",        26: "Brute",      27: "Defender",
+    28: "Acrobat",   29: "Desperado",
+}
+
+HOUSE_UPGRADE_LABELS = {0: "Cabin", 1: "Kitchen", 2: "Cellar", 3: "Full House"}
+
+# XSI namespace constant — used for nil-bool XML pattern
+_NS = "{http://www.w3.org/2001/XMLSchema-instance}"
+
+
+def _xp_progress(xp: int, level: int) -> dict:
+    """Return XP progress info toward the next skill level."""
+    if level >= 10:
+        return {"current_xp": xp, "xp_to_next": 0, "progress_pct": 100.0}
+    t_cur  = XP_THRESHOLDS[level]
+    t_next = XP_THRESHOLDS[level + 1]
+    needed = t_next - t_cur
+    pct    = round((xp - t_cur) / needed * 100, 1) if needed else 100.0
+    return {"current_xp": xp, "xp_to_next": max(0, t_next - xp), "progress_pct": pct}
+
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -127,6 +158,44 @@ class GameState:
     # ── Quests ───────────────────────────────────────────────────────────────
     quests: list = field(default_factory=list)        # list[QuestState]
 
+    # ── Identity ──────────────────────────────────────────────────────────────
+    farmer_name: str = ""
+    farm_name: str = ""
+    gender: str = ""
+    pet_type: str = ""
+
+    # ── Vitals ────────────────────────────────────────────────────────────────
+    health: int = 100
+    max_health: int = 100
+    stamina: float = 270.0
+    max_stamina: int = 270
+
+    # ── Skill XP (raw, 6 values indexed 0–5: Farm/Fish/Forage/Mine/Combat/Luck)
+    experience_points: list = field(default_factory=lambda: [0] * 6)
+
+    # ── Professions ───────────────────────────────────────────────────────────
+    professions: list = field(default_factory=list)  # list[int]
+
+    # ── Progression flags ─────────────────────────────────────────────────────
+    deepest_mine_level: int = 0
+    house_upgrade_level: int = 0
+    has_skull_key: bool = False
+    has_rusty_key: bool = False
+    has_special_charm: bool = False
+    can_understand_dwarves: bool = False
+
+    # ── Inventory ─────────────────────────────────────────────────────────────
+    inventory_items: list = field(default_factory=list)  # list[dict]
+
+    # ── Recipes (counts only) ─────────────────────────────────────────────────
+    recipes_cooking_count: int = 0
+    recipes_crafting_count: int = 0
+
+    # ── World-file extras ─────────────────────────────────────────────────────
+    mine_lowest_level_reached: int = 0
+    golden_walnuts: int = 0
+    golden_walnuts_found: int = 0
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # SAVE PARSER
@@ -199,6 +268,13 @@ class SaveParser:
                 return float(val)
             except (ValueError, TypeError):
                 return default
+
+        def get_nil_bool(path: str) -> bool:
+            """Return True only if element exists, is not xsi:nil, and text is 'true'."""
+            el = root.find(path)
+            if el is None or el.get(f"{_NS}nil") == "true":
+                return False
+            return (el.text or "").strip().lower() == "true"
 
         # Date
         state.day    = geti("dayOfMonthForSaveGame")
@@ -280,6 +356,83 @@ class SaveParser:
             money_reward = int(quest.findtext("moneyReward", "0") or 0)
             state.quests.append(QuestState(title=title, completed=completed, money_reward=money_reward))
 
+        # ── Identity (dual format: newer=Gender/whichPetType, older=isMale/catPerson)
+        state.farmer_name = get("name")
+        state.farm_name   = get("farmName")
+        g_el = root.find("Gender")
+        if g_el is None:
+            g_el = root.find("gender")
+        if g_el is not None and g_el.get(f"{_NS}nil") != "true":
+            state.gender = (g_el.text or "").strip()
+        else:
+            im_el = root.find("isMale")
+            if im_el is not None and im_el.get(f"{_NS}nil") != "true":
+                state.gender = "Male" if (im_el.text or "").lower() == "true" else "Female"
+        p_el = root.find("whichPetType")
+        if p_el is not None and p_el.get(f"{_NS}nil") != "true":
+            state.pet_type = (p_el.text or "").strip()
+        else:
+            cp_el = root.find("catPerson")
+            if cp_el is not None and cp_el.get(f"{_NS}nil") != "true":
+                state.pet_type = "Cat" if (cp_el.text or "").lower() == "true" else "Dog"
+
+        # ── Vitals
+        state.health      = geti("health", 100)
+        state.max_health  = geti("maxHealth", 100)
+        state.stamina     = getf("stamina", 270.0)
+        state.max_stamina = geti("maxStamina", 270)
+
+        # ── Skill XP (array of 6 ints: Farm/Fish/Forage/Mine/Combat/Luck)
+        state.experience_points = []
+        for xp_el in root.findall("experiencePoints/int"):
+            try:
+                state.experience_points.append(int(xp_el.text or 0))
+            except (ValueError, TypeError):
+                state.experience_points.append(0)
+        while len(state.experience_points) < 6:
+            state.experience_points.append(0)
+
+        # ── Professions
+        state.professions = []
+        for p_el in root.findall("professions/int"):
+            try:
+                state.professions.append(int(p_el.text or 0))
+            except (ValueError, TypeError):
+                pass
+
+        # ── Progression flags
+        state.deepest_mine_level     = geti("deepestMineLevel")
+        state.house_upgrade_level    = geti("houseUpgradeLevel")
+        state.has_skull_key          = get_nil_bool("hasSkullKey")
+        state.has_rusty_key          = get_nil_bool("hasRustyKey")
+        state.has_special_charm      = get_nil_bool("hasSpecialCharm")
+        state.can_understand_dwarves = get_nil_bool("canUnderstandDwarves")
+
+        # ── Inventory (skip nil/empty slots)
+        state.inventory_items = []
+        for slot_idx, item_el in enumerate(root.findall("items/Item")):
+            if item_el.get(f"{_NS}nil") == "true":
+                continue
+            name     = item_el.findtext("name", "") or ""
+            item_id  = item_el.findtext("itemId", "") or ""
+            stack    = int(item_el.findtext("stack", "1") or 1)
+            category = int(item_el.findtext("category", "0") or 0)
+            ulvl     = item_el.findtext("upgradeLevel")
+            if not name:
+                continue
+            state.inventory_items.append({
+                "slot":          slot_idx,
+                "name":          name,
+                "item_id":       item_id,
+                "stack":         stack,
+                "category":      category,
+                "upgrade_level": int(ulvl) if ulvl is not None else None,
+            })
+
+        # ── Recipes (counts only — list parsing is done by generate_schema.py)
+        state.recipes_cooking_count  = len(root.findall("cookingRecipes/item"))
+        state.recipes_crafting_count = len(root.findall("craftingRecipes/item"))
+
     # ── World Data (from main save file) ─────────────────────────────────────
 
     def _parse_world(self, state: GameState) -> None:
@@ -292,7 +445,10 @@ class SaveParser:
             log.warning(f"Main save file not found: {self.main_save_file}")
             return
 
-        targets = {"dailyLuck", "weatherForTomorrow", "isRaining"}
+        targets = {
+            "dailyLuck", "weatherForTomorrow", "isRaining",
+            "mine_lowestLevelReached", "goldenWalnuts", "goldenWalnutsFound",
+        }
         found: dict[str, str] = {}
 
         # iterparse yields (event, element) as the file is read.
@@ -314,6 +470,9 @@ class SaveParser:
         state.daily_luck       = float(found.get("dailyLuck", 0))
         state.weather_tomorrow = self._normalise_weather(found.get("weatherForTomorrow", "Sun"))
         state.is_raining       = found.get("isRaining", "false").lower() == "true"
+        state.mine_lowest_level_reached = int(found.get("mine_lowestLevelReached", 0) or 0)
+        state.golden_walnuts            = int(found.get("goldenWalnuts", 0) or 0)
+        state.golden_walnuts_found      = int(found.get("goldenWalnutsFound", 0) or 0)
 
     # Older saves store weatherForTomorrow as an integer enum; newer saves use
     # string names.  Both must resolve to the same string keys used by WEATHER_DESC.
@@ -538,6 +697,65 @@ class MorningBrief:
                 "gifts_given":      s.gifts_given,
                 "days_played":      s.days_played,
             },
+            "identity": {
+                "farmer_name": s.farmer_name,
+                "farm_name":   s.farm_name,
+                "gender":      s.gender,
+                "pet_type":    s.pet_type,
+            },
+            "vitals": {
+                "health":      s.health,
+                "max_health":  s.max_health,
+                "health_pct":  round(s.health / s.max_health * 100, 1) if s.max_health else 0.0,
+                "stamina":     int(s.stamina),
+                "max_stamina": s.max_stamina,
+                "stamina_pct": round(s.stamina / s.max_stamina * 100, 1) if s.max_stamina else 0.0,
+            },
+            "progression": {
+                "deepest_mine_level":        s.deepest_mine_level,
+                "mine_lowest_level_reached": s.mine_lowest_level_reached,
+                "house_upgrade_level":       s.house_upgrade_level,
+                "house_label":               HOUSE_UPGRADE_LABELS.get(s.house_upgrade_level, "Unknown"),
+                "has_skull_key":             s.has_skull_key,
+                "has_rusty_key":             s.has_rusty_key,
+                "has_special_charm":         s.has_special_charm,
+                "can_understand_dwarves":    s.can_understand_dwarves,
+                "golden_walnuts_found":      s.golden_walnuts_found,
+                "golden_walnuts_remaining":  s.golden_walnuts,
+            },
+            "inventory_summary": {
+                "total_items": len(s.inventory_items),
+                "tools": [
+                    {"name": it["name"], "upgrade_level": it["upgrade_level"]}
+                    for it in s.inventory_items if it["category"] == -99
+                ],
+                "seeds": [
+                    {"name": it["name"], "stack": it["stack"]}
+                    for it in s.inventory_items if it["category"] == -74
+                ],
+                "resources": [
+                    {"name": it["name"], "stack": it["stack"]}
+                    for it in s.inventory_items if it["category"] == -16
+                ],
+            },
+            "recipes": {
+                "cooking_known":  s.recipes_cooking_count,
+                "crafting_known": s.recipes_crafting_count,
+            },
+            "professions": [
+                {"id": pid, "name": PROFESSION_NAMES.get(pid, f"Unknown({pid})")}
+                for pid in s.professions
+            ],
+            "skills_detail": {
+                name: {
+                    "level": getattr(s, f"{name.lower()}_level"),
+                    **_xp_progress(
+                        s.experience_points[i] if i < len(s.experience_points) else 0,
+                        getattr(s, f"{name.lower()}_level"),
+                    )
+                }
+                for i, name in enumerate(["Farming", "Fishing", "Foraging", "Mining", "Combat"])
+            },
         }
 
     def as_text(self) -> str:
@@ -623,18 +841,106 @@ def build_llm_prompt(brief: MorningBrief, diff: Optional[GameStateDiff] = None) 
         print(response.content[0].text)
     """
     s             = brief.state
-    brief_json    = json.dumps(brief.as_dict(), indent=2)
+    d             = brief.as_dict()
+    brief_json    = json.dumps(d, indent=2)
     recap_section = diff.as_text() if diff else "(First session — no previous data.)"
+    luck_label, _ = brief._luck_info()
+
+    # ── Mine depth hint ───────────────────────────────────────────────────────
+    mine_level = s.deepest_mine_level
+    if mine_level == 0:
+        mine_hint = "Has not entered the mines yet."
+    elif mine_level < 40:
+        mine_hint = f"Reached mine floor {mine_level} (copper zone, floors 1–39)."
+    elif mine_level < 80:
+        mine_hint = f"Reached mine floor {mine_level} (iron zone, floors 40–79)."
+    elif mine_level < 120:
+        mine_hint = f"Reached mine floor {mine_level} (gold zone, nearing the bottom)."
+    else:
+        mine_hint = f"Cleared the regular mines (floor {mine_level}) — Skull Cavern accessible."
+
+    # ── Professions summary ───────────────────────────────────────────────────
+    if s.professions:
+        prof_names = [PROFESSION_NAMES.get(p, str(p)) for p in s.professions]
+        prof_hint  = ", ".join(prof_names)
+    else:
+        prof_hint = "None yet (requires level 5+ in a skill)"
+
+    # ── Tool summary ──────────────────────────────────────────────────────────
+    tools = d.get("inventory_summary", {}).get("tools", [])
+    tool_str = ", ".join(
+        f"{t['name']}(L{t['upgrade_level']})" if t.get("upgrade_level") is not None
+        else t["name"]
+        for t in tools
+    ) or "Standard starter tools"
+
+    # ── Seeds in bag ─────────────────────────────────────────────────────────
+    seeds = d.get("inventory_summary", {}).get("seeds", [])
+    seed_str = ", ".join(f"{it['name']} x{it['stack']}" for it in seeds) or "None"
+
+    # ── Skills close to leveling up (≥75% progress) ───────────────────────────
+    levelup_hints = []
+    for i, skill_name in enumerate(["Farming", "Fishing", "Foraging", "Mining", "Combat"]):
+        lvl = getattr(s, f"{skill_name.lower()}_level")
+        if lvl < 10:
+            xp   = s.experience_points[i] if i < len(s.experience_points) else 0
+            prog = _xp_progress(xp, lvl)
+            if prog["progress_pct"] >= 75.0:
+                levelup_hints.append(
+                    f"{skill_name} level {lvl} → {lvl + 1} "
+                    f"({prog['progress_pct']}%, {prog['xp_to_next']} XP to go)"
+                )
+    skill_levelup_section = (
+        "Skills close to leveling up:\n" + "\n".join(f"  - {h}" for h in levelup_hints)
+        if levelup_hints
+        else "No skills close to leveling up."
+    )
+
+    # ── Ginger Island walnut hint (only if player has found any) ─────────────
+    walnut_line = ""
+    if s.golden_walnuts_found > 0:
+        walnut_line = (
+            f"\n- Ginger Island: {s.golden_walnuts_found} Golden Walnuts found, "
+            f"{s.golden_walnuts} remaining to spend."
+        )
+
+    # ── Vitals hint (only shown if depleted) ─────────────────────────────────
+    vitals_line = ""
+    if s.max_health and s.health < s.max_health:
+        vitals_line += f"\n- Health: {s.health}/{s.max_health} (depleted — avoid risky combat today)."
+    if s.max_stamina and int(s.stamina) < s.max_stamina:
+        vitals_line += f"\n- Stamina: {int(s.stamina)}/{s.max_stamina} (depleted)."
+
+    house_label  = HOUSE_UPGRADE_LABELS.get(s.house_upgrade_level, "Unknown")
+    unlock_flags = ", ".join(filter(None, [
+        "Skull Key"   if s.has_skull_key          else "",
+        "Rusty Key"   if s.has_rusty_key           else "",
+        "Special Charm" if s.has_special_charm     else "",
+        "Dwarf Language" if s.can_understand_dwarves else "",
+    ])) or "None"
 
     prompt = f"""You are a warm, knowledgeable Stardew Valley coach helping a player plan their day.
+
+## Player Profile
+- Farmer: {s.farmer_name or "Unknown"} | Farm: {s.farm_name or "Unknown"} | Pet: {s.pet_type or "Unknown"}
+- House: {house_label} (upgrade level {s.house_upgrade_level}/3)
+- Professions: {prof_hint}
+- Unlocks obtained: {unlock_flags}
+- Mine progress: {mine_hint}
+- Recipes known: {s.recipes_cooking_count} cooking, {s.recipes_crafting_count} crafting
+- Tools: {tool_str}
+- Seeds in bag: {seed_str}{walnut_line}{vitals_line}
 
 ## Yesterday's Recap
 {recap_section}
 
-## Today's Morning Brief (structured data)
+## Today's Morning Brief (full structured data)
 ```json
 {brief_json}
 ```
+
+## Skill Progress
+{skill_levelup_section}
 
 ## Your Task
 Write a friendly, personalised **Daily Walkthrough** for Day {s.day} of {s.season}, Year {s.year}.
@@ -642,23 +948,27 @@ Write a friendly, personalised **Daily Walkthrough** for Day {s.day} of {s.seaso
 Structure your response EXACTLY as follows:
 
 ### Good Morning!
-A short (2-3 sentence) encouraging opener that references today's luck ({brief._luck_info()[0]}),
-the weather, and any big wins from yesterday.
+A short (2-3 sentence) encouraging opener that references today's luck ({luck_label}),
+the weather ({d['weather_tomorrow']['desc']}), and any big wins from yesterday.
+Mention {s.farmer_name or "the farmer"}'s current stage ({house_label}, {mine_hint.lower()}).
 
 ### Top Priorities
 Numbered list of 3-5 specific, actionable tasks ranked by importance.
-Base them on the player's active quests, current season, skill levels, and daily luck.
-Include *why* each task matters right now.
+Base them on: active quests, current season, skill levels, daily luck, tools, mine progress, and seeds in bag.
+Include *why* each task matters right now AND specific items/locations to target.
+If any skill is close to leveling ({skill_levelup_section.splitlines()[0]}), suggest activities that grant that XP.
 
 ### Social Round
 Which 1-3 villagers to visit today, and what to bring (gifts, conversation topics).
-Prioritise anyone with low friendship points or active social quests.
+Check the friendship data above and prioritise anyone below 4 hearts or with social quests active.
 
 ### Evening Checklist
-2-3 things to do before bed (watering, shipping bin, tool upgrades, etc.).
+2-3 things to do before bed (watering, shipping bin, tool upgrade at Clint's, etc.).
+Reference the player's current tools: {tool_str}.
 
 ### Coach's Tip
 One strategic insight tailored to their exact progress (Day {s.day}, {s.season}, Year {s.year}).
+Consider their mine depth, house level ({s.house_upgrade_level}/3), and chosen professions ({prof_hint}).
 Think ahead: what should they be building toward over the next week?
 
 Keep it practical, specific, and encouraging. Use actual numbers from the data above.

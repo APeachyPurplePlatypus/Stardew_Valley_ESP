@@ -1,0 +1,1379 @@
+{
+  "_meta": {
+    "generated_at": "2026-03-03T21:22:20",
+    "save_folder": "Pelican_350931629",
+    "farmer_file": "SaveGameInfo",
+    "world_file": "Pelican_350931629",
+    "description": "Comprehensive schema of all extractable Stardew Valley save data. _old files are never read — only current save files are used."
+  },
+  "identity": {
+    "farmer_name": "Farmer",
+    "farm_name": "Pelican",
+    "gender": "Female",
+    "pet_type": "Cat",
+    "game_version": "1.5.6",
+    "unique_id": "-7039153658028726611"
+  },
+  "date": {
+    "day": 29,
+    "season": "Winter",
+    "season_index": 3,
+    "year": 2,
+    "label": "Day 29, Winter, Year 2",
+    "save_time": 5884061
+  },
+  "finances": {
+    "wallet": 500,
+    "total_money_earned": 24060325,
+    "club_coins": 162600,
+    "qi_gems": 0
+  },
+  "vitals": {
+    "health": 180,
+    "max_health": 180,
+    "health_pct": 100.0,
+    "stamina": 508,
+    "max_stamina": 508,
+    "stamina_pct": 100.0
+  },
+  "skills": {
+    "Farming": {
+      "level": 10,
+      "current_xp": 527246,
+      "xp_to_next": 0,
+      "progress_pct": 100.0
+    },
+    "Fishing": {
+      "level": 10,
+      "current_xp": 26412,
+      "xp_to_next": 0,
+      "progress_pct": 100.0
+    },
+    "Foraging": {
+      "level": 10,
+      "current_xp": 34491,
+      "xp_to_next": 0,
+      "progress_pct": 100.0
+    },
+    "Mining": {
+      "level": 10,
+      "current_xp": 89188,
+      "xp_to_next": 0,
+      "progress_pct": 100.0
+    },
+    "Combat": {
+      "level": 10,
+      "current_xp": 38893,
+      "xp_to_next": 0,
+      "progress_pct": 100.0
+    },
+    "Luck": {
+      "level": 0,
+      "current_xp": 0,
+      "xp_to_next": 100,
+      "xp_needed_for_level": 100,
+      "progress_pct": 0.0
+    }
+  },
+  "professions": [
+    {
+      "id": 1,
+      "name": "Tiller"
+    },
+    {
+      "id": 24,
+      "name": "Fighter"
+    },
+    {
+      "id": 4,
+      "name": "Artisan"
+    },
+    {
+      "id": 26,
+      "name": "Brute"
+    },
+    {
+      "id": 13,
+      "name": "Gatherer"
+    },
+    {
+      "id": 16,
+      "name": "Botanist"
+    },
+    {
+      "id": 18,
+      "name": "Miner"
+    },
+    {
+      "id": 20,
+      "name": "Blacksmith"
+    },
+    {
+      "id": 6,
+      "name": "Fisher"
+    },
+    {
+      "id": 8,
+      "name": "Angler"
+    }
+  ],
+  "progression": {
+    "deepest_mine_level": 282,
+    "house_upgrade_level": 3,
+    "house_label": "Full House",
+    "has_skull_key": true,
+    "has_rusty_key": true,
+    "has_special_charm": true,
+    "can_understand_dwarves": true,
+    "has_club_card": true,
+    "has_magnifying_glass": true,
+    "has_magic_ink": true,
+    "has_dark_talisman": true,
+    "has_town_key": true,
+    "achievements_unlocked": 30,
+    "achievement_ids": [
+      24,
+      27,
+      0,
+      1,
+      20,
+      6,
+      28,
+      25,
+      18,
+      2,
+      7,
+      32,
+      11,
+      21,
+      19,
+      12,
+      13,
+      3,
+      29,
+      9,
+      26,
+      15,
+      30,
+      5,
+      22,
+      16,
+      4,
+      31,
+      34,
+      17
+    ],
+    "locations_visited": [],
+    "mail_received_count": 286
+  },
+  "inventory": [
+    {
+      "slot": 0,
+      "name": "Hoe",
+      "item_id": "",
+      "stack": 1,
+      "category": -99,
+      "quality": 0,
+      "price": 0,
+      "upgrade_level": 4
+    },
+    {
+      "slot": 1,
+      "name": "Pickaxe",
+      "item_id": "",
+      "stack": 1,
+      "category": -99,
+      "quality": 0,
+      "price": 0,
+      "upgrade_level": 4
+    },
+    {
+      "slot": 2,
+      "name": "Axe",
+      "item_id": "",
+      "stack": 1,
+      "category": -99,
+      "quality": 0,
+      "price": 0,
+      "upgrade_level": 4
+    },
+    {
+      "slot": 3,
+      "name": "Watering Can",
+      "item_id": "",
+      "stack": 1,
+      "category": -99,
+      "quality": 0,
+      "price": 0,
+      "upgrade_level": 4
+    },
+    {
+      "slot": 4,
+      "name": "Scythe",
+      "item_id": "",
+      "stack": 1,
+      "category": -99,
+      "quality": 0,
+      "price": 0,
+      "upgrade_level": 0
+    }
+  ],
+  "inventory_summary": {
+    "total_items": 5,
+    "tools": [
+      {
+        "name": "Hoe",
+        "upgrade_level": 4
+      },
+      {
+        "name": "Pickaxe",
+        "upgrade_level": 4
+      },
+      {
+        "name": "Axe",
+        "upgrade_level": 4
+      },
+      {
+        "name": "Watering Can",
+        "upgrade_level": 4
+      },
+      {
+        "name": "Scythe",
+        "upgrade_level": 0
+      }
+    ],
+    "seeds": [],
+    "resources": []
+  },
+  "recipes": {
+    "cooking_known": 80,
+    "crafting_known": 129,
+    "cooking_list": [
+      {
+        "name": "Fried Egg",
+        "times_cooked": 0
+      },
+      {
+        "name": "Dish o' The Sea",
+        "times_cooked": 0
+      },
+      {
+        "name": "Stir Fry",
+        "times_cooked": 0
+      },
+      {
+        "name": "Survival Burger",
+        "times_cooked": 0
+      },
+      {
+        "name": "Miner's Treat",
+        "times_cooked": 0
+      },
+      {
+        "name": "Farmer's Lunch",
+        "times_cooked": 0
+      },
+      {
+        "name": "Coleslaw",
+        "times_cooked": 0
+      },
+      {
+        "name": "Roots Platter",
+        "times_cooked": 0
+      },
+      {
+        "name": "Cheese Cauli.",
+        "times_cooked": 0
+      },
+      {
+        "name": "Radish Salad",
+        "times_cooked": 0
+      },
+      {
+        "name": "Pepper Poppers",
+        "times_cooked": 0
+      },
+      {
+        "name": "Salad",
+        "times_cooked": 0
+      },
+      {
+        "name": "Omelet",
+        "times_cooked": 0
+      },
+      {
+        "name": "Blueberry Tart",
+        "times_cooked": 0
+      },
+      {
+        "name": "Baked Fish",
+        "times_cooked": 0
+      },
+      {
+        "name": "Red Plate",
+        "times_cooked": 0
+      },
+      {
+        "name": "Salmon Dinner",
+        "times_cooked": 0
+      },
+      {
+        "name": "Pancakes",
+        "times_cooked": 0
+      },
+      {
+        "name": "Spaghetti",
+        "times_cooked": 0
+      },
+      {
+        "name": "Fried Mushroom",
+        "times_cooked": 0
+      },
+      {
+        "name": "Maki Roll",
+        "times_cooked": 0
+      },
+      {
+        "name": "Chowder",
+        "times_cooked": 0
+      },
+      {
+        "name": "Bread",
+        "times_cooked": 0
+      },
+      {
+        "name": "Seafoam Pudding",
+        "times_cooked": 0
+      },
+      {
+        "name": "Tortilla",
+        "times_cooked": 0
+      },
+      {
+        "name": "Sashimi",
+        "times_cooked": 0
+      },
+      {
+        "name": "Pale Broth",
+        "times_cooked": 0
+      },
+      {
+        "name": "Algae Soup",
+        "times_cooked": 0
+      },
+      {
+        "name": "Fried Calamari",
+        "times_cooked": 0
+      },
+      {
+        "name": "Trout Soup",
+        "times_cooked": 0
+      },
+      {
+        "name": "Fried Eel",
+        "times_cooked": 0
+      },
+      {
+        "name": "Parsnip Soup",
+        "times_cooked": 0
+      },
+      {
+        "name": "Stuffing",
+        "times_cooked": 0
+      },
+      {
+        "name": "Escargot",
+        "times_cooked": 0
+      },
+      {
+        "name": "Autumn's Bounty",
+        "times_cooked": 0
+      },
+      {
+        "name": "Cran. Sauce",
+        "times_cooked": 0
+      },
+      {
+        "name": "Rhubarb Pie",
+        "times_cooked": 0
+      },
+      {
+        "name": "Triple Shot Espresso",
+        "times_cooked": 0
+      },
+      {
+        "name": "Fish Stew",
+        "times_cooked": 0
+      },
+      {
+        "name": "Eggplant Parm.",
+        "times_cooked": 0
+      },
+      {
+        "name": "Glazed Yams",
+        "times_cooked": 0
+      },
+      {
+        "name": "Pumpkin Soup",
+        "times_cooked": 0
+      },
+      {
+        "name": "Tom Kha Soup",
+        "times_cooked": 0
+      },
+      {
+        "name": "Cookies",
+        "times_cooked": 0
+      },
+      {
+        "name": "Spicy Eel",
+        "times_cooked": 0
+      },
+      {
+        "name": "Artichoke Dip",
+        "times_cooked": 0
+      },
+      {
+        "name": "Fish Taco",
+        "times_cooked": 0
+      },
+      {
+        "name": "Ginger Ale",
+        "times_cooked": 0
+      },
+      {
+        "name": "Squid Ink Ravioli",
+        "times_cooked": 0
+      },
+      {
+        "name": "Plum Pudding",
+        "times_cooked": 0
+      },
+      {
+        "name": "Vegetable Stew",
+        "times_cooked": 0
+      },
+      {
+        "name": "Ice Cream",
+        "times_cooked": 0
+      },
+      {
+        "name": "Chocolate Cake",
+        "times_cooked": 0
+      },
+      {
+        "name": "Banana Pudding",
+        "times_cooked": 0
+      },
+      {
+        "name": "Pumpkin Pie",
+        "times_cooked": 0
+      },
+      {
+        "name": "Bean Hotpot",
+        "times_cooked": 0
+      },
+      {
+        "name": "Rice Pudding",
+        "times_cooked": 0
+      },
+      {
+        "name": "Lobster Bisque",
+        "times_cooked": 0
+      },
+      {
+        "name": "Cranberry Candy",
+        "times_cooked": 0
+      },
+      {
+        "name": "Pizza",
+        "times_cooked": 0
+      },
+      {
+        "name": "Hashbrowns",
+        "times_cooked": 0
+      },
+      {
+        "name": "Crispy Bass",
+        "times_cooked": 0
+      },
+      {
+        "name": "Poi",
+        "times_cooked": 0
+      },
+      {
+        "name": "Complete Breakfast",
+        "times_cooked": 0
+      },
+      {
+        "name": "Strange Bun",
+        "times_cooked": 0
+      },
+      {
+        "name": "Lucky Lunch",
+        "times_cooked": 0
+      },
+      {
+        "name": "Carp Surprise",
+        "times_cooked": 0
+      },
+      {
+        "name": "Maple Bar",
+        "times_cooked": 0
+      },
+      {
+        "name": "Super Meal",
+        "times_cooked": 0
+      },
+      {
+        "name": "Pink Cake",
+        "times_cooked": 0
+      },
+      {
+        "name": "Mango Sticky Rice",
+        "times_cooked": 0
+      },
+      {
+        "name": "Roasted Hazelnuts",
+        "times_cooked": 0
+      },
+      {
+        "name": "Fruit Salad",
+        "times_cooked": 0
+      },
+      {
+        "name": "Blackberry Cobbler",
+        "times_cooked": 0
+      },
+      {
+        "name": "Crab Cakes",
+        "times_cooked": 0
+      },
+      {
+        "name": "Fiddlehead Risotto",
+        "times_cooked": 0
+      },
+      {
+        "name": "Poppyseed Muffin",
+        "times_cooked": 0
+      },
+      {
+        "name": "Tropical Curry",
+        "times_cooked": 0
+      },
+      {
+        "name": "Bruschetta",
+        "times_cooked": 0
+      },
+      {
+        "name": "Shrimp Cocktail",
+        "times_cooked": 0
+      }
+    ],
+    "crafting_list": [
+      {
+        "name": "Stone Sign",
+        "times_crafted": 1
+      },
+      {
+        "name": "Wood Sign",
+        "times_crafted": 1
+      },
+      {
+        "name": "Gravel Path",
+        "times_crafted": 2
+      },
+      {
+        "name": "Cobblestone Path",
+        "times_crafted": 172
+      },
+      {
+        "name": "Wood Path",
+        "times_crafted": 4
+      },
+      {
+        "name": "Campfire",
+        "times_crafted": 1
+      },
+      {
+        "name": "Torch",
+        "times_crafted": 1
+      },
+      {
+        "name": "Gate",
+        "times_crafted": 4
+      },
+      {
+        "name": "Wood Fence",
+        "times_crafted": 1
+      },
+      {
+        "name": "Chest",
+        "times_crafted": 7
+      },
+      {
+        "name": "Wild Seeds (Sp)",
+        "times_crafted": 540
+      },
+      {
+        "name": "Field Snack",
+        "times_crafted": 25
+      },
+      {
+        "name": "Crab Pot",
+        "times_crafted": 1
+      },
+      {
+        "name": "Bait",
+        "times_crafted": 755
+      },
+      {
+        "name": "Ancient Seeds",
+        "times_crafted": 6
+      },
+      {
+        "name": "Recycling Machine",
+        "times_crafted": 1
+      },
+      {
+        "name": "Furnace",
+        "times_crafted": 13
+      },
+      {
+        "name": "Cherry Bomb",
+        "times_crafted": 6
+      },
+      {
+        "name": "Scarecrow",
+        "times_crafted": 3
+      },
+      {
+        "name": "Basic Fertilizer",
+        "times_crafted": 1373
+      },
+      {
+        "name": "Spinner",
+        "times_crafted": 1
+      },
+      {
+        "name": "Trap Bobber",
+        "times_crafted": 13
+      },
+      {
+        "name": "Staircase",
+        "times_crafted": 68
+      },
+      {
+        "name": "Sturdy Ring",
+        "times_crafted": 1
+      },
+      {
+        "name": "Bug Steak",
+        "times_crafted": 1
+      },
+      {
+        "name": "Life Elixir",
+        "times_crafted": 1
+      },
+      {
+        "name": "Transmute (Fe)",
+        "times_crafted": 9
+      },
+      {
+        "name": "Glowstone Ring",
+        "times_crafted": 1
+      },
+      {
+        "name": "Cork Bobber",
+        "times_crafted": 1
+      },
+      {
+        "name": "Treasure Hunter",
+        "times_crafted": 1
+      },
+      {
+        "name": "Bee House",
+        "times_crafted": 2
+      },
+      {
+        "name": "Speed-Gro",
+        "times_crafted": 50
+      },
+      {
+        "name": "Stone Fence",
+        "times_crafted": 4
+      },
+      {
+        "name": "Mayonnaise Machine",
+        "times_crafted": 7
+      },
+      {
+        "name": "Sprinkler",
+        "times_crafted": 43
+      },
+      {
+        "name": "Tapper",
+        "times_crafted": 47
+      },
+      {
+        "name": "Warrior Ring",
+        "times_crafted": 1
+      },
+      {
+        "name": "Iron Fence",
+        "times_crafted": 10
+      },
+      {
+        "name": "Preserves Jar",
+        "times_crafted": 8
+      },
+      {
+        "name": "Basic Retaining Soil",
+        "times_crafted": 1
+      },
+      {
+        "name": "Charcoal Kiln",
+        "times_crafted": 5
+      },
+      {
+        "name": "Wild Seeds (Su)",
+        "times_crafted": 610
+      },
+      {
+        "name": "Bomb",
+        "times_crafted": 16
+      },
+      {
+        "name": "Hardwood Fence",
+        "times_crafted": 1
+      },
+      {
+        "name": "Cheese Press",
+        "times_crafted": 8
+      },
+      {
+        "name": "Quality Sprinkler",
+        "times_crafted": 79
+      },
+      {
+        "name": "Tea Sapling",
+        "times_crafted": 928
+      },
+      {
+        "name": "Transmute (Au)",
+        "times_crafted": 1
+      },
+      {
+        "name": "Loom",
+        "times_crafted": 1
+      },
+      {
+        "name": "Quality Retaining Soil",
+        "times_crafted": 2
+      },
+      {
+        "name": "Lightning Rod",
+        "times_crafted": 24
+      },
+      {
+        "name": "Wild Seeds (Fa)",
+        "times_crafted": 120
+      },
+      {
+        "name": "Warp Totem: Beach",
+        "times_crafted": 1
+      },
+      {
+        "name": "Slime Egg-Press",
+        "times_crafted": 1
+      },
+      {
+        "name": "Oil Of Garlic",
+        "times_crafted": 1
+      },
+      {
+        "name": "Mega Bomb",
+        "times_crafted": 23
+      },
+      {
+        "name": "Worm Bin",
+        "times_crafted": 1
+      },
+      {
+        "name": "Dressed Spinner",
+        "times_crafted": 1
+      },
+      {
+        "name": "Barbed Hook",
+        "times_crafted": 1
+      },
+      {
+        "name": "Keg",
+        "times_crafted": 657
+      },
+      {
+        "name": "Oil Maker",
+        "times_crafted": 16
+      },
+      {
+        "name": "Deluxe Speed-Gro",
+        "times_crafted": 125
+      },
+      {
+        "name": "Tree Fertilizer",
+        "times_crafted": 72
+      },
+      {
+        "name": "Wild Seeds (Wi)",
+        "times_crafted": 780
+      },
+      {
+        "name": "Warp Totem: Mountains",
+        "times_crafted": 1
+      },
+      {
+        "name": "Seed Maker",
+        "times_crafted": 8
+      },
+      {
+        "name": "Iridium Sprinkler",
+        "times_crafted": 71
+      },
+      {
+        "name": "Quality Fertilizer",
+        "times_crafted": 12
+      },
+      {
+        "name": "Crystalarium",
+        "times_crafted": 1
+      },
+      {
+        "name": "Weathered Floor",
+        "times_crafted": 2
+      },
+      {
+        "name": "Ring of Yoba",
+        "times_crafted": 1
+      },
+      {
+        "name": "Thorns Ring",
+        "times_crafted": 1
+      },
+      {
+        "name": "Warp Totem: Farm",
+        "times_crafted": 1
+      },
+      {
+        "name": "Magnet",
+        "times_crafted": 3
+      },
+      {
+        "name": "Rain Totem",
+        "times_crafted": 2
+      },
+      {
+        "name": "Cookout Kit",
+        "times_crafted": 1
+      },
+      {
+        "name": "Stone Chest",
+        "times_crafted": 14
+      },
+      {
+        "name": "Slime Incubator",
+        "times_crafted": 1
+      },
+      {
+        "name": "Explosive Ammo",
+        "times_crafted": 5
+      },
+      {
+        "name": "Mini-Obelisk",
+        "times_crafted": 2
+      },
+      {
+        "name": "Garden Pot",
+        "times_crafted": 1
+      },
+      {
+        "name": "Mini-Jukebox",
+        "times_crafted": 1
+      },
+      {
+        "name": "Grass Starter",
+        "times_crafted": 123
+      },
+      {
+        "name": "Crystal Floor",
+        "times_crafted": 10
+      },
+      {
+        "name": "Wicked Statue",
+        "times_crafted": 1
+      },
+      {
+        "name": "Wild Bait",
+        "times_crafted": 5
+      },
+      {
+        "name": "Flute Block",
+        "times_crafted": 10
+      },
+      {
+        "name": "Drum Block",
+        "times_crafted": 1
+      },
+      {
+        "name": "Cask",
+        "times_crafted": 156
+      },
+      {
+        "name": "Geode Crusher",
+        "times_crafted": 1
+      },
+      {
+        "name": "Jack-O-Lantern",
+        "times_crafted": 1
+      },
+      {
+        "name": "Dark Sign",
+        "times_crafted": 1
+      },
+      {
+        "name": "Fiber Seeds",
+        "times_crafted": 404
+      },
+      {
+        "name": "Warp Totem: Island",
+        "times_crafted": 2
+      },
+      {
+        "name": "Iridium Band",
+        "times_crafted": 1
+      },
+      {
+        "name": "Farm Computer",
+        "times_crafted": 1
+      },
+      {
+        "name": "Deluxe Scarecrow",
+        "times_crafted": 6
+      },
+      {
+        "name": "Monster Musk",
+        "times_crafted": 5
+      },
+      {
+        "name": "Deluxe Retaining Soil",
+        "times_crafted": 1
+      },
+      {
+        "name": "Fairy Dust",
+        "times_crafted": 1
+      },
+      {
+        "name": "Bone Mill",
+        "times_crafted": 3
+      },
+      {
+        "name": "Deluxe Fertilizer",
+        "times_crafted": 5
+      },
+      {
+        "name": "Magic Bait",
+        "times_crafted": 5
+      },
+      {
+        "name": "Warp Totem: Desert",
+        "times_crafted": 7
+      },
+      {
+        "name": "Tub o' Flowers",
+        "times_crafted": 1
+      },
+      {
+        "name": "Quality Bobber",
+        "times_crafted": 1
+      },
+      {
+        "name": "Hyper Speed-Gro",
+        "times_crafted": 1
+      },
+      {
+        "name": "Hopper",
+        "times_crafted": 1
+      },
+      {
+        "name": "Crystal Path",
+        "times_crafted": 5
+      },
+      {
+        "name": "Straw Floor",
+        "times_crafted": 1
+      },
+      {
+        "name": "Stepping Stone Path",
+        "times_crafted": 1
+      },
+      {
+        "name": "Stone Walkway Floor",
+        "times_crafted": 1
+      },
+      {
+        "name": "Brick Floor",
+        "times_crafted": 5
+      },
+      {
+        "name": "Stone Floor",
+        "times_crafted": 1
+      },
+      {
+        "name": "Rustic Plank Floor",
+        "times_crafted": 1
+      },
+      {
+        "name": "Wood Floor",
+        "times_crafted": 1
+      },
+      {
+        "name": "Iron Lamp-post",
+        "times_crafted": 1
+      },
+      {
+        "name": "Wood Lamp-post",
+        "times_crafted": 1
+      },
+      {
+        "name": "Wooden Brazier",
+        "times_crafted": 1
+      },
+      {
+        "name": "Stone Brazier",
+        "times_crafted": 1
+      },
+      {
+        "name": "Barrel Brazier",
+        "times_crafted": 1
+      },
+      {
+        "name": "Stump Brazier",
+        "times_crafted": 1
+      },
+      {
+        "name": "Gold Brazier",
+        "times_crafted": 1
+      },
+      {
+        "name": "Carved Brazier",
+        "times_crafted": 1
+      },
+      {
+        "name": "Skull Brazier",
+        "times_crafted": 1
+      },
+      {
+        "name": "Marble Brazier",
+        "times_crafted": 1
+      },
+      {
+        "name": "Solar Panel",
+        "times_crafted": 1
+      },
+      {
+        "name": "Heavy Tapper",
+        "times_crafted": 1
+      },
+      {
+        "name": "Ostrich Incubator",
+        "times_crafted": 1
+      }
+    ]
+  },
+  "cumulative_stats": {
+    "stone_gathered": 13409,
+    "items_shipped": 60639,
+    "rocks_crushed": 6389,
+    "times_fished": 836,
+    "steps_taken": 282665,
+    "days_played": 225,
+    "crops_shipped": 32514,
+    "items_foraged": 2018,
+    "monsters_killed": 4815,
+    "items_crafted": 7572,
+    "gifts_given": 253,
+    "weeds_eliminated": 132,
+    "dirt_hoed": 4871,
+    "geodes_cracked": 370,
+    "items_cooked": 1243,
+    "average_bedtime": 2384,
+    "milliseconds_played": 0,
+    "times_unconscious": 1,
+    "times_farmed": 0
+  },
+  "friendships": [
+    {
+      "npc": "Robin",
+      "points": 2749,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Lewis",
+      "points": 2749,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Caroline",
+      "points": 2749,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Willy",
+      "points": 2749,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Wizard",
+      "points": 2749,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Vincent",
+      "points": 2749,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Jas",
+      "points": 2749,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Linus",
+      "points": 2749,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Clint",
+      "points": 2749,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Pam",
+      "points": 2749,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Gus",
+      "points": 2749,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Jodi",
+      "points": 2749,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Demetrius",
+      "points": 2749,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Evelyn",
+      "points": 2749,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Pierre",
+      "points": 2690,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Leo",
+      "points": 2662,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Marnie",
+      "points": 2641,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Kent",
+      "points": 2601,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "George",
+      "points": 2585,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Dwarf",
+      "points": 2585,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Krobus",
+      "points": 2550,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Sandy",
+      "points": 2514,
+      "hearts": 10,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Penny",
+      "points": 2249,
+      "hearts": 8,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Shane",
+      "points": 2249,
+      "hearts": 8,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Leah",
+      "points": 2249,
+      "hearts": 8,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Elliott",
+      "points": 2249,
+      "hearts": 8,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Harvey",
+      "points": 2249,
+      "hearts": 8,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Haley",
+      "points": 2249,
+      "hearts": 8,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Alex",
+      "points": 2249,
+      "hearts": 8,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Sam",
+      "points": 2249,
+      "hearts": 8,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Sebastian",
+      "points": 2122,
+      "hearts": 8,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Maru",
+      "points": 2086,
+      "hearts": 8,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Emily",
+      "points": 2040,
+      "hearts": 8,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Abigail",
+      "points": 2020,
+      "hearts": 8,
+      "status": "Friendly",
+      "talked_today": false
+    },
+    {
+      "npc": "Henchman",
+      "points": 0,
+      "hearts": 0,
+      "status": "Friendly",
+      "talked_today": false
+    }
+  ],
+  "active_quests": [],
+  "active_dialogue_events": {
+    "pamHouseUpgrade": 2
+  },
+  "world": {
+    "daily_luck": 0.064,
+    "weather_tomorrow": "Sun",
+    "is_raining": false,
+    "is_snowing": false,
+    "is_lightning": false,
+    "is_debris_weather": false,
+    "current_season": "Spring",
+    "day_of_month": 1,
+    "year": 3,
+    "mine_lowest_level_reached": 282,
+    "golden_walnuts": 3,
+    "golden_walnuts_found": 130,
+    "farm_perfect": true
+  }
+}
