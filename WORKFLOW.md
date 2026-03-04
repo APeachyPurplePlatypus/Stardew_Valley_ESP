@@ -124,11 +124,11 @@ Each save folder contains two files the agent reads:
 
 | File | Size | Content | Used For |
 |---|---|---|---|
-| `SaveGameInfo` | ~23 KB | Farmer snapshot | Money, skills, stats, quests, friendships, date |
-| `{FolderName}` | 2–10 MB | Full world state | `dailyLuck`, `weatherForTomorrow`, `isRaining` |
+| `SaveGameInfo` | ~23 KB | Farmer snapshot | Money, skills, stats, quests, friendships, date, `fishCaught` |
+| `{FolderName}` | 2–10 MB | Full world state | `dailyLuck`, `weatherForTomorrow`, `isRaining`, `bundleData`, Community Center bundles |
 | `*_old` variants | same | Previous day's copies | Yesterday's state for diffing |
 
-The world file is parsed with `iterparse` (streaming) so only the 3 needed root-level fields are loaded, keeping memory use minimal even as saves grow.
+The world file is loaded with `ET.parse()` (full tree) since Community Center data is nested deeply inside `<locations>`.  Files are 2–10 MB — acceptable performance for the bundle and world-state features we need.
 
 ---
 
@@ -159,6 +159,8 @@ GameStateDiff.compute()
   • quest completions / new quests
   • friendship point gains / new NPCs met
   • new dialogue events
+  • new fish species caught
+  • bundle donation progress + bundle completions
       │
       ▼
 MorningBrief.as_dict()   →  output/morning_brief.json
@@ -257,19 +259,22 @@ The following collections are populated in Pelican but empty in Tolkien. Future 
 |---|---|---|---|
 | `basicShipped/item` | 0 items | 199 items | Not yet |
 | `mineralsFound/item` | 0 items | 53 items | Not yet |
-| `fishCaught/item` | 0 items | 78 species | Not yet |
+| `fishCaught/item` | 0 items | 73 species | ✅ Tracked (species count + diff) |
 | `archaeologyFound/item` | 0 items | 43 items | Not yet |
 | `achievements/int` | 0 | 30 | Not yet |
-| `professions/int` | 0 | 10 | Not yet |
-| `cookingRecipes/item` | 1 | 80 | Not yet |
-| `craftingRecipes/item` | 11 | 129 | Not yet |
+| `professions/int` | 0 | 10 | ✅ Tracked |
+| `cookingRecipes/item` | 1 | 80 | ✅ Tracked (count) |
+| `craftingRecipes/item` | 11 | 129 | ✅ Tracked (count) |
 | `secretNotesSeen/int` | 0 | 36 | Not yet |
 | `specialItems` | 0 items | 15 items | Not yet |
 | `mailReceived/string` | 2 items | 286 items | Not yet |
-| `houseUpgradeLevel` | 0 | 3 | Not yet |
-| `deepestMineLevel` | 0 | 282 | Not yet |
-| `hasSkullKey` | nil | true | Not yet |
-| `hasRustyKey` | nil | true | Not yet |
+| `houseUpgradeLevel` | 0 | 3 | ✅ Tracked |
+| `deepestMineLevel` | 0 | 282 | ✅ Tracked |
+| `hasSkullKey` | nil | true | ✅ Tracked |
+| `hasRustyKey` | nil | true | ✅ Tracked |
+| `bundleData/item` (main save) | 31 bundles | 31 bundles | ✅ Parsed (see §6 below) |
+| CommunityCenter `areasComplete` | 0/6 | 6/6 | ✅ Tracked |
+| CommunityCenter `bundles` | 0 donated | 23/31 complete | ✅ Tracked (slot-level) |
 
 ### SaveGameInfo vs Main Save — Field Location Reference
 
@@ -283,10 +288,28 @@ The following collections are populated in Pelican but empty in Tolkien. Future 
 | Quests | `SaveGameInfo` | `questLog/Quest` |
 | Friendships | `SaveGameInfo` | `friendshipData/item` |
 | Dialogue events | `SaveGameInfo` | `activeDialogueEvents/item` |
+| Fish caught | `SaveGameInfo` | `fishCaught/item` — `key/int` (item ID) → `value/ArrayOfInt/int` (count, max size) |
 | Daily luck | Main save | `SaveGame/dailyLuck` (root level) |
 | Weather tomorrow | Main save | `SaveGame/weatherForTomorrow` |
 | Is raining | Main save | `SaveGame/isRaining` |
-| Current season | Main save | `SaveGame/currentSeason` |
+| Bundle definitions | Main save | `SaveGame/bundleData/item` — key `"Room/ID"`, value `"name/reward/items/numRequired/color"` |
+| CC room completion | Main save | `SaveGame/locations/GameLocation[@name=CommunityCenter]/areasComplete/boolean` (6 booleans) |
+| CC bundle donations | Main save | `SaveGame/locations/GameLocation[@name=CommunityCenter]/bundles/item` — `key/int` → `ArrayOfBoolean` (n_items × 3 booleans per slot) |
+
+### Bundle Format Details
+
+`bundleData` value format:
+```
+name / reward / item_id qty quality [item_id qty quality ...] / numRequired / color [/ displayName]
+```
+- `reward`: `"O item_id qty"` or `"BO item_id qty"` (big object)
+- Items: space-separated triplets — `item_id qty quality` (quality: 0=Normal, 1=Silver, 2=Gold, 4=Iridium)
+- `numRequired`: `-1` means all items are required; positive value = exact count needed
+- Bundle definitions are embedded in the save — remixed bundles work automatically
+
+CC bundle donation array:
+- `bundles` dict maps bundle ID → `ArrayOfBoolean` with `n_items × 3` booleans
+- Slot `i` is considered donated if `any(bools[i*3 : i*3+3])` is True (first boolean in the triplet is the primary flag)
 
 ---
 
@@ -298,8 +321,9 @@ Central data model. All fields default to zero/empty so partial saves still pars
 ### SaveParser
 - `__init__(save_folder, use_old=False)` — selects current or `_old` file pair
 - `parse() → GameState` — runs both `_parse_farmer` and `_parse_world`
-- `_parse_farmer()` — reads `SaveGameInfo`; handles dual stat format
-- `_parse_world()` — streams main save with `iterparse`; stops after 3 target fields
+- `_parse_farmer()` — reads `SaveGameInfo`; handles dual stat format; parses `fishCaught` using `FISH_ID_NAMES`
+- `_parse_world()` — full `ET.parse()` of main save for world fields + bundle data
+- `_parse_bundles(state, world_root)` — parses `bundleData` definitions + Community Center donation progress
 
 ### GameStateDiff
 - `compute() → dict[str, str]` — returns keyed activity strings, empty dict if no changes
@@ -314,7 +338,15 @@ Central data model. All fields default to zero/empty so partial saves still pars
 ### build_llm_prompt(brief, diff)
 Returns a markdown prompt with yesterday's recap + today's JSON brief. Structured output sections: Good Morning / Top Priorities / Social Round / Evening Checklist / Coach's Tip.
 
-Prompt is ~1,400 tokens; recommended minimum model context window: **4,096 tokens**.
+Includes dedicated **Fishing** section (today's catchable fish by season + weather) and **Community Center Progress** section (incomplete bundles closest to completion with missing items listed).
+
+Prompt is ~2,000–3,000 tokens depending on CC bundle count; recommended minimum model context window: **8,192 tokens**.
+
+### Constants and Helpers
+- `FISH_ID_NAMES: dict[int, str]` — 59 fish species mapped from integer save IDs (confirmed against stardewids/objects.json for 1.6)
+- `BUNDLE_ITEM_NAMES: dict[int, str]` — 80+ item IDs covering all standard and remixed bundle items
+- `FISH_SCHEDULE: list` — 60-entry availability table: `(name, seasons_frozenset, weather, location, min_fishing_level)`
+- `get_catchable_fish(season, is_raining, fishing_level) → list` — filters schedule by today's conditions, returns `(name, location, note)` tuples
 
 ### call_ollama(prompt, model, base_url, timeout, think)
 Sends the coaching prompt to a local Ollama instance via stdlib `urllib` (no pip install needed).
@@ -388,24 +420,23 @@ print(MorningBrief(s).as_text())
 
 ### Short Term
 - [ ] **Achievement tracking** — diff `achievements/int` list; report newly unlocked achievements
-- [ ] **Profession detection** — parse `professions/int` to show chosen skill paths
-- [ ] **House upgrade tracking** — diff `houseUpgradeLevel` (0–3)
-- [ ] **Key items** — detect when `hasSkullKey`, `hasRustyKey`, `canUnderstandDwarves` become `true`
-- [ ] **Fish collection** — diff `fishCaught/item` to report new species caught
+- [ ] **Recipe tracking** — diff `cookingRecipes/item` and `craftingRecipes/item` to report newly learned recipes
+- [ ] **Mineral/artifact tracking** — diff `mineralsFound` and `archaeologyFound`
+- [ ] **Multi-farm support** — when multiple save folders exist, prompt user to select or monitor all
 
 ### Medium Term
 - [x] **LLM integration** — Ollama local LLM via `--ollama` flag; `call_ollama()` uses stdlib urllib, no pip deps
-- [ ] **Multi-farm support** — when multiple save folders exist, prompt user to select one or monitor all
-- [ ] **Recipe tracking** — report newly learned cooking/crafting recipes
-- [ ] **Mineral/artifact tracking** — diff `mineralsFound` and `archaeologyFound`
+- [x] **Fish collection tracking** — diff `fishCaught/item` to report new species; `FISH_ID_NAMES` maps 59 species
+- [x] **Fish availability lookup** — `FISH_SCHEDULE` + `get_catchable_fish()` lists catchable fish by season/weather/level
+- [x] **Bundle tracker** — parse `bundleData` and Community Center donation booleans from main save; surfaces closest-to-complete bundles in prompt
+- [ ] **Seasonal crop planner** — advise on which crops to plant given current day and days left in season
 
 ### Long Term
 - [ ] **Time-series logging** — append each day's `GameState` to a SQLite DB for trend analysis
 - [ ] **Farm layout parser** — read building placement from the main save's `<locations>` element
-- [ ] **Bundle tracker** — parse Community Center bundle progress from the main save
 - [ ] **Web dashboard** — serve `morning_brief.json` via a simple Flask/FastAPI endpoint
 
 ---
 
-*Last updated: 2026-03-04*
+*Last updated: 2026-03-05*
 *Game version tested: 1.6.15 | Python: 3.13*
