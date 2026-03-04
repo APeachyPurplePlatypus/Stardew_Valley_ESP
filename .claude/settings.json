@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \":*)",
+      "Read(//c/Users/david/AppData/Roaming/StardewValley//**)",
+      "Bash(python agents/game_state_agent.py --saves-dir saves --once)",
+      "Bash(xmllint --format /c/Users/david/Stardew_Valley_ESP/saves/Tolkien_432258440/SaveGameInfo)",
+      "Bash(python3:*)",
+      "Bash(python scripts/generate_schema.py --saves-dir saves)",
+      "Bash(python scripts/generate_schema.py --saves-dir saves --save Pelican_350931629)",
+      "Bash(python -c \"import json; d=json.load\\(open\\(''output/game_state_schema.json''\\)\\); prog=d[''progression'']; print\\(''house:'', prog[''house_label'']\\); print\\(''skull_key:'', prog[''has_skull_key'']\\); print\\(''rusty_key:'', prog[''has_rusty_key'']\\); print\\(''dwarves:'', prog[''can_understand_dwarves'']\\); print\\(''mine_level:'', prog[''deepest_mine_level'']\\); print\\(''professions:'', len\\(d[''professions'']\\)\\); print\\(''identity:'', d[''identity'']\\)\")",
+      "Bash(git checkout -b feature/schema-and-prompt-enhancement main)",
+      "Bash(git stash)",
+      "Bash(git stash pop)",
+      "Bash(git add agents/game_state_agent.py scripts/generate_schema.py output/game_state_schema.json)",
+      "Bash(git commit:*)",
+      "Bash(git push -u origin feature/schema-and-prompt-enhancement)",
+      "Bash(winget list gh)",
+      "Bash(cmd /c \"gh pr create --title \"\"Add comprehensive game state schema and enhance coaching prompt\"\" --body \"\"See PR description\"\" --base main\")",
+      "Read(//c/Program Files/**)",
+      "Bash(python agents/game_state_agent.py --once)",
+      "Bash(python -c \"import os; p=os.path.expandvars\\(r''%APPDATA%\\\\StardewValley''\\); print\\(p\\); import pathlib; print\\(list\\(pathlib.Path\\(p\\).parent.iterdir\\(\\)\\)[:10]\\)\")",
+      "Bash(python -c \"import pathlib; p=pathlib.Path\\(r''C:/Users/david/AppData/Roaming/StardewValley/Saves''\\); print\\(list\\(p.iterdir\\(\\)\\)\\)\")",
+      "Bash(python -c \":*)",
+      "Bash(python -c \"import pathlib; p=pathlib.Path\\(r''C:/Users/david/AppData/Roaming/StardewValley''\\); [print\\(f\\) for f in p.rglob\\(''SaveGameInfo''\\)]\")"
+    ]
+  }
+}
