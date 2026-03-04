@@ -4,7 +4,12 @@ from openpyxl.styles import Font, PatternFill, Alignment
 from collections import defaultdict
 
 # Parse the save file
-save_file = r"c:\Users\david\Stardew_Valley_ESP\Saves\Tolkien_432258440\SaveGameInfo"
+# Run from the repo root:  python scripts/parse_save.py
+import pathlib
+_repo = pathlib.Path(__file__).parent.parent
+_saves = _repo / "saves"
+_save_folder = max(_saves.iterdir(), key=lambda f: f.stat().st_mtime)
+save_file = str(_save_folder / "SaveGameInfo")
 tree = ET.parse(save_file)
 root = tree.getroot()
 
@@ -74,8 +79,8 @@ ws.column_dimensions['A'].width = 50
 ws.column_dimensions['B'].width = 40
 ws.column_dimensions['C'].width = 15
 
-# Save workbook
-output_file = r"c:\Users\david\Stardew_Valley_ESP\Stardew_Save_Attributes.xlsx"
+# Save workbook to output/
+output_file = str(_repo / "output" / "Stardew_Save_Attributes.xlsx")
 wb.save(output_file)
 
 print(f"✓ Excel file created: {output_file}")
