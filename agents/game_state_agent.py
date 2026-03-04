@@ -218,10 +218,12 @@ class SaveParser:
         state.combat_level   = geti("combatLevel")
         state.luck_level     = geti("luckLevel")
 
-        # Statistics — stored as <stats><Values><item><key><string>…
+        # Statistics — two formats exist across game versions:
+        #   Format A (1.6 new saves):  stats/Values/item  key-value pairs
+        #   Format B (legacy saves):   stats/<statName>   direct child elements
+        stat_set = False
         for item in root.findall("stats/Values/item"):
             key  = item.findtext("key/string", "")
-            # values can be <unsignedInt> or <int>
             v_el = item.find("value/unsignedInt")
             if v_el is None:
                 v_el = item.find("value/int")
@@ -229,6 +231,25 @@ class SaveParser:
                 attr = self.STAT_MAP.get(key)
                 if attr:
                     setattr(state, attr, int(v_el.text))
+                    stat_set = True
+
+        if not stat_set:
+            # Format B: direct child elements under <stats>
+            # Also handles PascalCase duplicates (e.g. StoneGathered) by
+            # building a case-insensitive lookup of the STAT_MAP keys.
+            lower_map = {k.lower(): v for k, v in self.STAT_MAP.items()}
+            stats_el = root.find("stats")
+            if stats_el is not None:
+                ns = "{http://www.w3.org/2001/XMLSchema-instance}"
+                for child in stats_el:
+                    if child.get(f"{ns}nil") == "true" or not child.text:
+                        continue
+                    attr = lower_map.get(child.tag.lower())
+                    if attr:
+                        try:
+                            setattr(state, attr, int(child.text))
+                        except ValueError:
+                            pass
 
         # Active dialogue events
         for item in root.findall("activeDialogueEvents/item"):
@@ -291,8 +312,17 @@ class SaveParser:
                     break
 
         state.daily_luck       = float(found.get("dailyLuck", 0))
-        state.weather_tomorrow = found.get("weatherForTomorrow", "Sun")
+        state.weather_tomorrow = self._normalise_weather(found.get("weatherForTomorrow", "Sun"))
         state.is_raining       = found.get("isRaining", "false").lower() == "true"
+
+    # Older saves store weatherForTomorrow as an integer enum; newer saves use
+    # string names.  Both must resolve to the same string keys used by WEATHER_DESC.
+    _WEATHER_INT = {"0": "Sun", "1": "Rain", "2": "Storm", "3": "Snow",
+                    "4": "Wind", "5": "Festival", "6": "Wedding", "7": "GreenRain"}
+
+    @staticmethod
+    def _normalise_weather(raw: str) -> str:
+        return SaveParser._WEATHER_INT.get(raw.strip(), raw.strip())
 
 
 # ─────────────────────────────────────────────────────────────────────────────
