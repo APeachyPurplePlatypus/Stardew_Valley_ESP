@@ -47,3 +47,4 @@ Thumbs.db
 # Generated agent outputs (re-created on each run)
 output/morning_brief.json
 output/coach_prompt.txt
+output/*.xlsx
