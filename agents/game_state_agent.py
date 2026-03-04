@@ -69,6 +69,177 @@ PROFESSION_NAMES = {
 
 HOUSE_UPGRADE_LABELS = {0: "Cabin", 1: "Kitchen", 2: "Cellar", 3: "Full House"}
 
+# ── Fish item ID → display name (Stardew Valley 1.6, confirmed via stardewids) ─
+FISH_ID_NAMES: dict[int, str] = {
+    128: "Pufferfish",      129: "Anchovy",           130: "Tuna",
+    131: "Sardine",         132: "Bream",              136: "Largemouth Bass",
+    137: "Smallmouth Bass", 138: "Rainbow Trout",      139: "Salmon",
+    140: "Walleye",         141: "Perch",              142: "Carp",
+    143: "Catfish",         144: "Pike",               145: "Sunfish",
+    146: "Red Mullet",      147: "Herring",            148: "Eel",
+    149: "Octopus",         150: "Red Snapper",        151: "Squid",
+    152: "Seaweed",         153: "Green Algae",        154: "Sea Cucumber",
+    155: "Super Cucumber",  156: "Ghostfish",          157: "White Algae",
+    158: "Stonefish",       159: "Crimsonfish",        160: "Angler",
+    161: "Ice Pip",         162: "Lava Eel",           163: "Legend",
+    164: "Sandfish",        165: "Scorpion Carp",
+    267: "Flounder",        269: "Midnight Carp",      372: "Clam",
+    682: "Mutant Carp",     698: "Sturgeon",           699: "Tiger Trout",
+    700: "Bullhead",        701: "Tilapia",            702: "Chub",
+    704: "Dorado",          705: "Albacore",           706: "Shad",
+    707: "Lingcod",         708: "Halibut",
+    715: "Lobster",         716: "Crayfish",           717: "Crab",
+    718: "Cockle",          719: "Mussel",             720: "Shrimp",
+    721: "Snail",           722: "Periwinkle",         723: "Oyster",
+    734: "Woodskip",        775: "Glacierfish",        795: "Void Salmon",
+    796: "Slimejack",       798: "Midnight Squid",     799: "Spook Fish",
+    800: "Blobfish",        836: "Stingray",           837: "Lionfish",
+    838: "Blue Discus",     898: "Son of Crimsonfish", 899: "Ms. Angler",
+    900: "Legend II",       901: "Radioactive Carp",   902: "Glacierfish Jr.",
+}
+
+# ── Bundle item ID → display name (extracted from bundleData in both dev saves) ─
+BUNDLE_ITEM_NAMES: dict[int, str] = {
+    16: "Wild Horseradish",  18: "Daffodil",          20: "Leek",
+    22: "Dandelion",         24: "Parsnip",            62: "Aquamarine",
+    74: "Prismatic Shard",   78: "Cave Carrot",        80: "Quartz",
+    82: "Fire Quartz",       84: "Frozen Tear",        86: "Earth Crystal",
+    88: "Coconut",           90: "Cactus Fruit",      128: "Pufferfish",
+    130: "Tuna",            131: "Sardine",           132: "Bream",
+    136: "Largemouth Bass", 140: "Walleye",           142: "Carp",
+    143: "Catfish",         145: "Sunfish",           148: "Eel",
+    150: "Red Snapper",     156: "Ghostfish",         164: "Sandfish",
+    174: "Large Egg",       178: "Hay",               182: "Large Egg",
+    186: "Large Milk",      188: "Green Bean",        190: "Cauliflower",
+    192: "Potato",          194: "Fried Egg",         228: "Maki Roll",
+    254: "Melon",           256: "Tomato",            257: "Morel",
+    258: "Blueberry",       259: "Fiddlehead Fern",   260: "Hot Pepper",
+    262: "Wheat",           266: "Red Cabbage",       270: "Corn",
+    272: "Eggplant",        276: "Pumpkin",           280: "Yam",
+    334: "Copper Bar",      335: "Iron Bar",          336: "Gold Bar",
+    340: "Honey",           344: "Jelly",             348: "Wine",
+    372: "Clam",            376: "Poppy",             388: "Wood",
+    390: "Stone",           392: "Nautilus Shell",    396: "Spice Berry",
+    397: "Sea Urchin",      398: "Grape",             402: "Sweet Pea",
+    404: "Common Mushroom", 406: "Wild Plum",         408: "Hazelnut",
+    410: "Blackberry",      412: "Winter Root",       414: "Crystal Fruit",
+    416: "Snow Yam",        418: "Crocus",            420: "Red Mushroom",
+    421: "Sunflower",       422: "Purple Mushroom",   424: "Cheese",
+    426: "Goat Cheese",     428: "Cloth",             430: "Truffle",
+    432: "Truffle Oil",     438: "L. Goat Milk",      440: "Wool",
+    442: "Duck Egg",        444: "Duck Feather",      445: "Caviar",
+    446: "Rabbit's Foot",   454: "Ancient Fruit",     536: "Frozen Geode",
+    613: "Apple",           634: "Apricot",           635: "Orange",
+    636: "Peach",           637: "Pomegranate",       638: "Cherry",
+    698: "Sturgeon",        699: "Tiger Trout",       700: "Bullhead",
+    701: "Tilapia",         702: "Chub",              706: "Shad",
+    709: "Hardwood",        715: "Lobster",           716: "Crayfish",
+    717: "Crab",            718: "Cockle",            719: "Mussel",
+    720: "Shrimp",          721: "Snail",             722: "Periwinkle",
+    723: "Oyster",          724: "Maple Syrup",       725: "Oak Resin",
+    726: "Pine Tar",        734: "Woodskip",          766: "Slime",
+    767: "Bat Wing",        768: "Solar Essence",     769: "Void Essence",
+    795: "Void Salmon",     807: "Dinosaur Mayonnaise",
+}
+
+# ── Fish availability schedule ─────────────────────────────────────────────────
+# Each entry: (name, seasons_frozenset, weather, location_hint, min_fishing_level)
+#   weather: "any" | "sun" | "rain"
+#   seasons: lowercase frozenset from {"spring","summer","fall","winter"}
+_S = frozenset
+FISH_SCHEDULE: list = [
+    # ── Ocean ──────────────────────────────────────────────────────────────────
+    ("Pufferfish",       _S({"summer"}),                      "sun",  "Ocean",                      0),
+    ("Anchovy",          _S({"spring", "fall"}),               "any",  "Ocean",                      0),
+    ("Tuna",             _S({"summer", "winter"}),             "any",  "Ocean",                      0),
+    ("Sardine",          _S({"spring", "fall", "winter"}),     "any",  "Ocean",                      0),
+    ("Red Mullet",       _S({"summer", "fall"}),               "any",  "Ocean",                      0),
+    ("Herring",          _S({"spring", "winter"}),             "any",  "Ocean",                      0),
+    ("Eel",              _S({"spring", "fall"}),               "rain", "Ocean",                      3),
+    ("Octopus",          _S({"summer"}),                      "any",  "Ocean",                      6),
+    ("Red Snapper",      _S({"summer", "fall"}),               "any",  "Ocean",                      0),
+    ("Squid",            _S({"winter"}),                      "any",  "Ocean",                      4),
+    ("Sea Cucumber",     _S({"fall", "winter"}),               "any",  "Ocean",                      0),
+    ("Super Cucumber",   _S({"summer", "fall"}),               "any",  "Ocean (night)",              8),
+    ("Crimsonfish",      _S({"summer"}),                      "any",  "Ocean (east pier)",          5),
+    ("Flounder",         _S({"spring", "summer"}),             "any",  "Ocean",                      0),
+    ("Tilapia",          _S({"summer", "fall"}),               "any",  "Ocean",                      0),
+    ("Albacore",         _S({"fall", "winter"}),               "any",  "Ocean",                      0),
+    ("Halibut",          _S({"spring", "summer", "winter"}),   "any",  "Ocean",                      0),
+    # ── River ──────────────────────────────────────────────────────────────────
+    ("Bream",            _S({"spring","summer","fall","winter"}),"any","River (night)",              0),
+    ("Smallmouth Bass",  _S({"spring", "fall"}),               "any",  "River",                      0),
+    ("Rainbow Trout",    _S({"summer"}),                      "sun",  "River / Mountain Lake",      0),
+    ("Salmon",           _S({"fall"}),                        "any",  "River",                      0),
+    ("Walleye",          _S({"fall"}),                        "rain", "River",                      0),
+    ("Catfish",          _S({"spring", "fall"}),               "rain", "River",                      4),
+    ("Pike",             _S({"summer", "winter"}),             "any",  "River",                      0),
+    ("Sunfish",          _S({"spring", "summer"}),             "sun",  "River",                      0),
+    ("Shad",             _S({"spring", "summer", "fall"}),     "rain", "River",                      0),
+    ("Lingcod",          _S({"winter"}),                      "any",  "River",                      5),
+    ("Tiger Trout",      _S({"fall", "winter"}),               "any",  "River",                      5),
+    ("Angler",           _S({"fall"}),                        "any",  "River (north bridge)",       3),
+    ("Midnight Carp",    _S({"fall", "winter"}),               "any",  "River / Mountain (night)",   0),
+    # ── Mountain Lake ──────────────────────────────────────────────────────────
+    ("Largemouth Bass",  _S({"spring","summer","fall","winter"}),"any","Mountain Lake",              0),
+    ("Carp",             _S({"spring", "summer", "fall"}),     "any",  "Mountain Lake",              0),
+    ("Bullhead",         _S({"spring","summer","fall","winter"}),"any","Mountain Lake",              0),
+    ("Sturgeon",         _S({"summer", "winter"}),             "any",  "Mountain Lake",              0),
+    ("Legend",           _S({"spring"}),                      "rain", "Mountain Lake",              10),
+    # ── Other freshwater ───────────────────────────────────────────────────────
+    ("Perch",            _S({"winter"}),                      "any",  "River / Lake",               0),
+    ("Chub",             _S({"spring","summer","fall","winter"}),"any","Mountain / Forest River",    0),
+    ("Dorado",           _S({"summer"}),                      "any",  "Forest River",               0),
+    ("Woodskip",         _S({"spring","summer","fall","winter"}),"any","Secret Woods",               0),
+    # ── Desert ─────────────────────────────────────────────────────────────────
+    ("Sandfish",         _S({"summer", "fall"}),               "any",  "Desert",                     0),
+    ("Scorpion Carp",    _S({"summer"}),                      "any",  "Desert",                     4),
+    # ── Mines / Underground ────────────────────────────────────────────────────
+    ("Ghostfish",        _S({"spring","summer","fall","winter"}),"any","Mines (lv 20 / 60)",         0),
+    ("Stonefish",        _S({"spring","summer","fall","winter"}),"any","Mines (lv 20)",              0),
+    ("Ice Pip",          _S({"spring","summer","fall","winter"}),"any","Mines (lv 60)",              5),
+    ("Lava Eel",         _S({"spring","summer","fall","winter"}),"any","Mines (lv 100)",             7),
+    # ── Key-gated locations ────────────────────────────────────────────────────
+    ("Mutant Carp",      _S({"spring","summer","fall","winter"}),"any","Sewers (Rusty Key)",         0),
+    ("Void Salmon",      _S({"spring","summer","fall","winter"}),"any","Witch's Swamp",              0),
+    ("Slimejack",        _S({"spring","summer","fall","winter"}),"any","Sewers / Slime Hutch",       0),
+    ("Glacierfish",      _S({"winter"}),                      "any",  "Arrowhead Island",           6),
+    # ── Ginger Island ──────────────────────────────────────────────────────────
+    ("Stingray",         _S({"spring","summer","fall","winter"}),"any","Ginger Island (Pirate Cove)", 0),
+    ("Lionfish",         _S({"spring","summer","fall","winter"}),"any","Ginger Island (ocean)",      0),
+    ("Blue Discus",      _S({"spring","summer","fall","winter"}),"any","Ginger Island (river)",      0),
+    # ── Legendary II (Mr. Qi extended family quest) ────────────────────────────
+    ("Son of Crimsonfish",_S({"summer"}),                     "any",  "Ocean east pier [Qi Quest]", 5),
+    ("Ms. Angler",       _S({"fall"}),                        "any",  "River north bridge [Qi Quest]", 3),
+    ("Legend II",        _S({"spring"}),                      "rain", "Mountain Lake [Qi Quest]",   10),
+    ("Radioactive Carp", _S({"spring","summer","fall","winter"}),"any","Mutant Bug Lair [Qi Quest]", 0),
+    ("Glacierfish Jr.",  _S({"winter"}),                      "any",  "Arrowhead Island [Qi Quest]", 6),
+]
+
+
+def get_catchable_fish(season: str, is_raining: bool, fishing_level: int = 0) -> list:
+    """
+    Return sorted list of (name, location, level_note) tuples catchable today.
+
+    Args:
+        season: Current season (Spring/Summer/Fall/Winter)
+        is_raining: True if currently raining or storming
+        fishing_level: Player's Fishing skill level (used for min-level notes)
+    """
+    season_lower = season.lower()
+    results = []
+    for name, seasons, condition, location, min_level in FISH_SCHEDULE:
+        if season_lower not in seasons:
+            continue
+        if condition == "rain" and not is_raining:
+            continue
+        if condition == "sun" and is_raining:
+            continue
+        note = f"(fishing {min_level}+)" if min_level > 0 else ""
+        results.append((name, location, note))
+    return sorted(results, key=lambda x: x[0])
+
+
 # XSI namespace constant — used for nil-bool XML pattern
 _NS = "{http://www.w3.org/2001/XMLSchema-instance}"
 
@@ -140,6 +311,33 @@ class FriendshipState:
     points: int
     status: str
     talked_today: bool
+
+
+@dataclass
+class BundleItem:
+    item_id: int
+    item_name: str
+    quantity: int
+    quality: int    # 0=Normal, 1=Silver, 2=Gold, 4=Iridium
+    donated: bool
+
+
+@dataclass
+class BundleState:
+    id: int
+    name: str
+    room: str
+    items: list          # list[BundleItem]
+    items_donated: int
+    items_total: int
+    required: int        # slots needed to complete bundle
+    is_complete: bool    # donated_count >= required
+
+    def is_done(self) -> bool:
+        return self.is_complete
+
+    def missing_items(self) -> list:
+        return [it for it in self.items if not it.donated]
 
 
 @dataclass
@@ -226,6 +424,13 @@ class GameState:
     mine_lowest_level_reached: int = 0
     golden_walnuts: int = 0
     golden_walnuts_found: int = 0
+
+    # ── Fishing collection ────────────────────────────────────────────────────
+    fish_caught: dict = field(default_factory=dict)          # {name: catch_count}
+
+    # ── Community Center ──────────────────────────────────────────────────────
+    cc_rooms_complete: list = field(default_factory=list)    # list[bool], 6 rooms
+    cc_bundles: list = field(default_factory=list)           # list[BundleState]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -464,46 +669,169 @@ class SaveParser:
         state.recipes_cooking_count  = len(root.findall("cookingRecipes/item"))
         state.recipes_crafting_count = len(root.findall("craftingRecipes/item"))
 
+        # ── Fish caught: int ID → [count, maxSize]
+        state.fish_caught = {}
+        for item in root.findall("fishCaught/item"):
+            k_el = item.find("key/int")
+            if k_el is None:
+                continue
+            try:
+                fish_id = int(k_el.text or 0)
+            except (ValueError, TypeError):
+                continue
+            name = FISH_ID_NAMES.get(fish_id)
+            if name is None:
+                continue
+            count_el = item.find("value/ArrayOfInt/int")
+            count = int(count_el.text or 1) if count_el is not None else 1
+            state.fish_caught[name] = count
+
     # ── World Data (from main save file) ─────────────────────────────────────
 
     def _parse_world(self, state: GameState) -> None:
         """
-        Extract root-level world fields from the large main save file using
-        iterparse so we don't load the entire tree — we stop as soon as we
-        have what we need.
+        Extract root-level world fields and Community Center bundle data from the
+        main save file.  Uses full ET.parse() so we can access nested locations.
+        Files are typically 2–10 MB — acceptable for the features we need.
         """
         if not self.main_save_file.exists():
             log.warning(f"Main save file not found: {self.main_save_file}")
             return
 
-        targets = {
-            "dailyLuck", "weatherForTomorrow", "isRaining",
-            "mine_lowestLevelReached", "goldenWalnuts", "goldenWalnutsFound",
-        }
-        found: dict[str, str] = {}
+        tree = ET.parse(self.main_save_file)
+        root = tree.getroot()  # <SaveGame>
 
-        # iterparse yields (event, element) as the file is read.
-        # We only care about top-level children of <SaveGame>, which appear
-        # before the massive <locations> element, so this is fast in practice.
-        depth = 0
-        for event, elem in ET.iterparse(self.main_save_file, events=("start", "end")):
-            if event == "start":
-                depth += 1
-            else:
-                depth -= 1
-                # Only capture direct children of the root (depth 0 after "end")
-                if depth == 1 and elem.tag in targets and elem.tag not in found:
-                    found[elem.tag] = (elem.text or "").strip()
-                elem.clear()  # free memory as we go
-                if len(found) == len(targets):
-                    break
+        def ftext(path: str, default: str = "") -> str:
+            el = root.find(path)
+            return (el.text or "").strip() if el is not None else default
 
-        state.daily_luck       = float(found.get("dailyLuck", 0))
-        state.weather_tomorrow = self._normalise_weather(found.get("weatherForTomorrow", "Sun"))
-        state.is_raining       = found.get("isRaining", "false").lower() == "true"
-        state.mine_lowest_level_reached = int(found.get("mine_lowestLevelReached", 0) or 0)
-        state.golden_walnuts            = int(found.get("goldenWalnuts", 0) or 0)
-        state.golden_walnuts_found      = int(found.get("goldenWalnutsFound", 0) or 0)
+        state.daily_luck       = float(ftext("dailyLuck") or 0)
+        state.weather_tomorrow = self._normalise_weather(ftext("weatherForTomorrow", "Sun"))
+        state.is_raining       = ftext("isRaining", "false").lower() == "true"
+        state.mine_lowest_level_reached = int(ftext("mine_lowestLevelReached") or 0)
+        state.golden_walnuts            = int(ftext("goldenWalnuts") or 0)
+        state.golden_walnuts_found      = int(ftext("goldenWalnutsFound") or 0)
+
+        self._parse_bundles(state, root)
+
+    def _parse_bundles(self, state: GameState, world_root: ET.Element) -> None:
+        """Parse Community Center bundle definitions and donation progress."""
+
+        # ── 1. Parse bundle definitions from bundleData ───────────────────────
+        # Key format:   "Room/bundleID"
+        # Value format: "name/reward/item_id qty quality .../numRequired/color[/displayName]"
+        #   numRequired: -1 means all items required; positive = exact count needed
+        bundle_defs: dict[int, dict] = {}
+        for item in world_root.findall("bundleData/item"):
+            key_str = item.findtext("key/string", "")
+            val_str = item.findtext("value/string", "")
+            if not key_str or not val_str:
+                continue
+            key_parts = key_str.split("/")
+            if len(key_parts) < 2:
+                continue
+            room = key_parts[0]
+            try:
+                bundle_id = int(key_parts[1])
+            except ValueError:
+                continue
+
+            parts = val_str.split("/")
+            if len(parts) < 3:
+                continue
+            bundle_name = parts[0]
+
+            raw = parts[2].split()
+            items_def = []
+            for i in range(0, len(raw) - 2, 3):
+                try:
+                    items_def.append((int(raw[i]), int(raw[i + 1]), int(raw[i + 2])))
+                except (ValueError, IndexError):
+                    continue
+
+            n_items = len(items_def)
+            try:
+                num_required = int(parts[3]) if len(parts) > 3 else -1
+            except ValueError:
+                num_required = -1
+            if num_required <= 0:
+                num_required = n_items
+
+            bundle_defs[bundle_id] = {
+                "name":     bundle_name,
+                "room":     room,
+                "items":    items_def,
+                "required": num_required,
+            }
+
+        # ── 2. Find CommunityCenter GameLocation ──────────────────────────────
+        cc_elem = None
+        for loc in world_root.iter("GameLocation"):
+            if loc.findtext("name") == "CommunityCenter":
+                cc_elem = loc
+                break
+
+        if cc_elem is None:
+            return  # Joja route or not yet reachable
+
+        # ── 3. Room completion flags (6 booleans) ─────────────────────────────
+        state.cc_rooms_complete = [
+            (b.text or "").strip().lower() == "true"
+            for b in cc_elem.findall("areasComplete/boolean")
+        ]
+
+        # ── 4. Per-bundle donation booleans ───────────────────────────────────
+        # Each bundle stores n_items * 3 booleans; slot i is donated when
+        # any of booleans[i*3 .. i*3+3] is True.
+        bundle_progress: dict[int, list] = {}
+        for bitem in cc_elem.findall("bundles/item"):
+            k_el = bitem.find("key/int")
+            if k_el is None:
+                continue
+            try:
+                bid = int(k_el.text or 0)
+            except ValueError:
+                continue
+            bools = [
+                (b.text or "").strip().lower() == "true"
+                for b in bitem.findall("value/ArrayOfBoolean/boolean")
+            ]
+            bundle_progress[bid] = bools
+
+        # ── 5. Build BundleState objects ──────────────────────────────────────
+        state.cc_bundles = []
+        for bundle_id, defn in sorted(bundle_defs.items()):
+            bools     = bundle_progress.get(bundle_id, [])
+            items_def = defn["items"]
+            required  = defn["required"]
+
+            bundle_items = []
+            donated_count = 0
+            for i, (item_id, qty, quality) in enumerate(items_def):
+                start    = i * 3
+                donated  = any(bools[start: start + 3]) if start + 3 <= len(bools) else False
+                if donated:
+                    donated_count += 1
+                item_name = (
+                    BUNDLE_ITEM_NAMES.get(item_id)
+                    or FISH_ID_NAMES.get(item_id)
+                    or f"Item #{item_id}"
+                )
+                bundle_items.append(BundleItem(
+                    item_id=item_id, item_name=item_name,
+                    quantity=qty, quality=quality, donated=donated,
+                ))
+
+            state.cc_bundles.append(BundleState(
+                id=bundle_id,
+                name=defn["name"],
+                room=defn["room"],
+                items=bundle_items,
+                items_donated=donated_count,
+                items_total=len(items_def),
+                required=required,
+                is_complete=(donated_count >= required),
+            ))
 
     # Older saves store weatherForTomorrow as an integer enum; newer saves use
     # string names.  Both must resolve to the same string keys used by WEATHER_DESC.
@@ -613,6 +941,27 @@ class GameStateDiff:
         clean_events = [e for e in new_events if not e.endswith("_memory_oneday")]
         if clean_events:
             results["dialogue"] = f"New story moments triggered: {', '.join(clean_events)}."
+
+        # ── New fish species caught ───────────────────────────────────────────
+        new_fish = set(t.fish_caught) - set(y.fish_caught)
+        if new_fish:
+            results["new_fish"] = f"New fish species caught: {', '.join(sorted(new_fish))}."
+
+        # ── Bundle progress ───────────────────────────────────────────────────
+        y_bundles = {b.id: b for b in y.cc_bundles}
+        t_bundles = {b.id: b for b in t.cc_bundles}
+        for bid, tb in t_bundles.items():
+            yb = y_bundles.get(bid)
+            if yb and tb.is_done() and not yb.is_done():
+                results[f"bundle_done_{bid}"] = (
+                    f"[BUNDLE COMPLETE] '{tb.name}' ({tb.room}) completed!"
+                )
+            elif yb and tb.items_donated > yb.items_donated:
+                delta = tb.items_donated - yb.items_donated
+                results[f"bundle_prog_{bid}"] = (
+                    f"Bundle '{tb.name}': +{delta} item(s) donated "
+                    f"({tb.items_donated}/{tb.required} needed)."
+                )
 
         return results
 
@@ -787,6 +1136,36 @@ class MorningBrief:
                 }
                 for i, name in enumerate(["Farming", "Fishing", "Foraging", "Mining", "Combat"])
             },
+            "fish_collection": {
+                "total_species": len(s.fish_caught),
+                "species": sorted(s.fish_caught.keys()),
+            },
+            "catchable_fish_today": [
+                {"name": name, "location": loc, "note": note}
+                for name, loc, note in get_catchable_fish(s.season, s.is_raining, s.fishing_level)
+            ],
+            "community_center": {
+                "rooms_complete": s.cc_rooms_complete,
+                "rooms_done": sum(s.cc_rooms_complete) if s.cc_rooms_complete else 0,
+                "rooms_total": len(s.cc_rooms_complete),
+                "all_complete": all(s.cc_rooms_complete) if s.cc_rooms_complete else False,
+                "bundles": [
+                    {
+                        "id":          b.id,
+                        "name":        b.name,
+                        "room":        b.room,
+                        "donated":     b.items_donated,
+                        "required":    b.required,
+                        "total":       b.items_total,
+                        "is_complete": b.is_done(),
+                        "missing": [
+                            {"name": it.item_name, "qty": it.quantity, "quality": it.quality}
+                            for it in b.missing_items()
+                        ],
+                    }
+                    for b in s.cc_bundles
+                ],
+            },
         }
 
     def as_text(self) -> str:
@@ -927,6 +1306,60 @@ def build_llm_prompt(brief: MorningBrief, diff: Optional[GameStateDiff] = None) 
         else "No skills close to leveling up."
     )
 
+    # ── Fish availability today ────────────────────────────────────────────────
+    catchable = get_catchable_fish(s.season, s.is_raining, s.fishing_level)
+    if catchable:
+        weather_label = "rainy" if s.is_raining else "sunny"
+        fish_lines = "\n".join(
+            f"  - {name} — {loc}{(' ' + note) if note else ''}"
+            for name, loc, note in catchable[:15]
+        )
+        fish_section = (
+            f"Fish catchable today ({s.season}, {weather_label}):\n{fish_lines}"
+        )
+        if len(catchable) > 15:
+            fish_section += f"\n  … and {len(catchable) - 15} more"
+    else:
+        fish_section = f"No fish catchable in {s.season} with current weather."
+
+    if s.fish_caught:
+        species_list = sorted(s.fish_caught.keys())
+        fish_caught_str = (
+            f"{len(species_list)} species caught — "
+            + ", ".join(species_list[:10])
+            + (f" (+{len(species_list) - 10} more)" if len(species_list) > 10 else "")
+        )
+    else:
+        fish_caught_str = "No fish caught yet."
+
+    # ── Community Center bundle status ────────────────────────────────────────
+    if s.cc_bundles:
+        rooms_done  = sum(s.cc_rooms_complete) if s.cc_rooms_complete else 0
+        rooms_total = len(s.cc_rooms_complete) if s.cc_rooms_complete else 6
+        cc_header   = f"Community Center: {rooms_done}/{rooms_total} rooms complete"
+        incomplete  = [b for b in s.cc_bundles if not b.is_done()]
+        if not incomplete:
+            cc_section = f"{cc_header}\n  All bundles complete — congratulations!"
+        else:
+            close = sorted(incomplete, key=lambda b: b.items_donated / max(b.required, 1), reverse=True)[:5]
+            bundle_lines = []
+            for b in close:
+                missing = b.missing_items()
+                missing_str = ", ".join(
+                    f"{it.item_name} x{it.quantity}" for it in missing[:4]
+                )
+                if len(missing) > 4:
+                    missing_str += f" (+{len(missing) - 4} more)"
+                bundle_lines.append(
+                    f"  - {b.name} ({b.room}): {b.items_donated}/{b.required} donated"
+                    + (f" — still need: {missing_str}" if missing_str else "")
+                )
+            cc_section = f"{cc_header}\n  Closest to completion:\n" + "\n".join(bundle_lines)
+            if len(incomplete) > 5:
+                cc_section += f"\n  … and {len(incomplete) - 5} more incomplete bundles"
+    else:
+        cc_section = "Community Center: bundle data unavailable (save not yet loaded)."
+
     # ── Ginger Island walnut hint (only if player has found any) ─────────────
     walnut_line = ""
     if s.golden_walnuts_found > 0:
@@ -973,6 +1406,13 @@ def build_llm_prompt(brief: MorningBrief, diff: Optional[GameStateDiff] = None) 
 ## Skill Progress
 {skill_levelup_section}
 
+## Fishing
+{fish_section}
+Fish collection: {fish_caught_str}
+
+## Community Center Progress
+{cc_section}
+
 ## Your Task
 Write a friendly, personalised **Daily Walkthrough** for Day {s.day} of {s.season}, Year {s.year}.
 
@@ -985,9 +1425,10 @@ Mention {s.farmer_name or "the farmer"}'s current stage ({house_label}, {mine_hi
 
 ### Top Priorities
 Numbered list of 3-5 specific, actionable tasks ranked by importance.
-Base them on: active quests, current season, skill levels, daily luck, tools, mine progress, and seeds in bag.
+Base them on: active quests, current season, skill levels, daily luck, tools, mine progress, seeds in bag, catchable fish today, and incomplete CC bundles.
 Include *why* each task matters right now AND specific items/locations to target.
 If any skill is close to leveling ({skill_levelup_section.splitlines()[0]}), suggest activities that grant that XP.
+If bundle items are in season or catchable today, call that out explicitly.
 
 ### Social Round
 Which 1-3 villagers to visit today, and what to bring (gifts, conversation topics).

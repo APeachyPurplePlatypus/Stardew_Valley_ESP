@@ -9,8 +9,10 @@ The agent tracks your progress day-to-day, alerts you to tasks nearing completio
 ## Features
 
 - **Morning Brief** — every time you sleep in-game, the agent wakes up with you: current luck, weather forecast, wallet, active quests, and top relationships shown in a clean terminal summary
-- **Daily Diff** — compares yesterday's save against today's to report exactly what you accomplished: stone mined, fish caught, quests completed, friendships gained, level-ups
-- **LLM Coaching Prompt** — generates a structured prompt and optionally sends it to a local Ollama model for a step-by-step personalised walkthrough for the new day
+- **Daily Diff** — compares yesterday's save against today's to report exactly what you accomplished: stone mined, fish caught, quests completed, friendships gained, level-ups, new bundle donations
+- **Fish Availability** — lists every fish catchable right now based on your current season, weather, and fishing level — including location hints and skill requirements
+- **Community Center Tracker** — parses bundle definitions directly from your save file (works with remixed bundles too), tracks donation progress per slot, and surfaces the bundles closest to completion with their missing items
+- **LLM Coaching Prompt** — generates a structured prompt and optionally sends it to a local Ollama model for a step-by-step personalised walkthrough for the new day; fishing conditions and bundle status are included in context
 - **Watch Mode** — uses `watchdog` to automatically fire analysis the moment you sleep in-game, no manual steps required
 - **JSON Output** — all data is also written as structured JSON for use by other tools or scripts
 
@@ -165,8 +167,8 @@ Two save files are committed for development and testing:
 
 | Profile | State | Purpose |
 |---|---|---|
-| `Tolkien_432258440` | Day 2, Spring, Year 1 — brand new farm | Tests early-game logic, quest detection |
-| `Pelican_350931629` | Day 225, Winter, Year 2 — near-endgame, all skills maxed | Tests stat parsing, advanced save format, large friendship/recipe lists |
+| `Tolkien_432258440` | Day 2, Spring, Year 1 — brand new farm | Tests early-game logic, quest detection, early-game bundles |
+| `Pelican_350931629` | Day 225, Winter, Year 2 — near-endgame, all skills maxed | Tests stat parsing, advanced save format, large friendship/recipe lists, 73-species fish collection, near-complete CC |
 
 > Note: the two saves use different XML stat formats. The agent handles both automatically. See `WORKFLOW.md` for details.
 
