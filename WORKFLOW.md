@@ -25,9 +25,16 @@ An automated agent that reads Stardew Valley save files, diffs the game state be
 | `python agents/game_state_agent.py --saves-dir saves` | Watch mode (triggers on each in-game sleep) |
 | `python agents/game_state_agent.py --saves-dir saves --json` | JSON output only (for piping) |
 | `python agents/game_state_agent.py` | Live mode (reads from `%APPDATA%\StardewValley\Saves`) |
+| `python agents/game_state_agent.py --live --once` | One live snapshot from stardew-mcp WebSocket |
+| `python agents/game_state_agent.py --live` | Watch for in-game day changes via WebSocket |
+| `python agents/stardew_mcp_server.py` | MCP server for Claude Desktop (stdio transport) |
 | `python scripts/parse_save.py` | Dump all XML attributes to `output/Stardew_Save_Attributes.xlsx` |
 
-**Dependencies:** `watchdog` (watch mode only), `openpyxl` (parse_save.py only)
+**Dependencies:**
+- `watchdog` (save-file watch mode only)
+- `openpyxl` (parse_save.py only)
+- `websockets` (live WebSocket mode)
+- `mcp` (Claude Desktop MCP server)
 
 ---
 
@@ -36,7 +43,8 @@ An automated agent that reads Stardew Valley save files, diffs the game state be
 ```
 Stardew_Valley_ESP/
 ├── agents/                     # Autonomous agent scripts
-│   └── game_state_agent.py     # Main Game State Agent (see §3)
+│   ├── game_state_agent.py     # Main Game State Agent (see §3)
+│   └── stardew_mcp_server.py   # MCP server for Claude Desktop
 │
 ├── scripts/                    # Utility / analysis scripts
 │   └── parse_save.py           # XML → Excel attribute dumper
@@ -68,36 +76,63 @@ Stardew_Valley_ESP/
 ### agents/game_state_agent.py — Component Map
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      GameStateAgent                         │
-│  (orchestrator: discovers save folder, owns observer loop)  │
-└───────────┬─────────────────────────────────────────────────┘
-            │ on_save_detected()
-            ▼
-┌───────────────────┐     ┌───────────────────┐
-│   SaveParser      │     │   SaveParser       │
-│   (current)       │     │   (use_old=True)   │
-│   SaveGameInfo    │     │   SaveGameInfo_old │
-│   + main save     │     │   + main_old       │
-└────────┬──────────┘     └────────┬───────────┘
-         │ GameState                │ GameState
-         └──────────┬───────────────┘
-                    ▼
-         ┌──────────────────┐
-         │  GameStateDiff   │  compares yesterday vs today
-         └────────┬─────────┘
-                  │ dict[str, str]  activity log
-                  ▼
-         ┌──────────────────┐
-         │  MorningBrief    │  formats current state
-         └────────┬─────────┘
-                  │
-         ┌────────▼─────────┐   ┌────────────────────────┐
-         │  Text summary    │   │  build_llm_prompt()     │
-         │  (terminal)      │   │  coach_prompt.txt       │
-         └──────────────────┘   └────────────────────────┘
-         output/morning_brief.json
-         output/coach_prompt.txt   ← send to any LLM (Claude, GPT-4, etc.)
+┌───────────────────────────────────────────────────────────────┐
+│                       GameStateAgent                          │
+│   (orchestrator: discovers save folder, owns observer loop)   │
+└──────────┬──────────────────────────────────┬─────────────────┘
+           │ on_save_detected()                │ live_once() / live_watch()
+           ▼                                   ▼
+┌──────────────────┐  ┌──────────────┐   ┌───────────────┐
+│   SaveParser     │  │  SaveParser  │   │  LiveAdapter  │
+│   (current)      │  │ (use_old)    │   │  WebSocket    │
+│   SaveGameInfo   │  │  *_old files │   │  ws://...8765 │
+│   + main save    │  └──────┬───────┘   └──────┬────────┘
+└────────┬─────────┘         │ GameState         │ GameState
+         │ GameState          └─────────┐        │ (live fields)
+         └──────────────────────────────┴────────┘
+                                        │
+                                        ▼
+                            ┌─────────────────────┐
+                            │   _run_analysis()   │
+                            └──────────┬──────────┘
+                                       ▼
+                        ┌──────────────────────────┐
+                        │      GameStateDiff        │
+                        │  compares yesterday vs    │
+                        │  today (save-file mode)   │
+                        └────────────┬─────────────┘
+                                     ▼
+                        ┌──────────────────────────┐
+                        │       MorningBrief        │
+                        │  formats current state    │
+                        └──────┬───────────────┬───┘
+                               │               │
+                    ┌──────────▼──────┐  ┌─────▼──────────────────┐
+                    │  Text summary   │  │   build_llm_prompt()    │
+                    │  (terminal)     │  │   coach_prompt.txt      │
+                    └─────────────────┘  └────────────────────────┘
+                    output/morning_brief.json
+                    output/coach_prompt.txt   ← send to any LLM
+```
+
+### agents/stardew_mcp_server.py — Claude Desktop MCP
+
+```
+Claude Desktop
+      │  stdio (MCP protocol)
+      ▼
+stardew_mcp_server.py (FastMCP)
+      │                           │
+      ▼ get_live_state()          ▼ get_bundle_status()
+      │ get_surroundings()        │ get_fish_collection()
+      │ get_catchable_fish()      │
+      ▼                           ▼
+ LiveAdapter                 SaveParser
+ ws://localhost:8765/game    %APPDATA%\StardewValley\Saves
+      │                           │
+      ▼                           ▼
+ SMAPI mod (C#)             Stardew Valley save file
+ stardew-mcp                (written on each in-game sleep)
 ```
 
 ### SaveParser — Two-File Strategy
@@ -116,6 +151,7 @@ The world file is loaded with `ET.parse()` (full tree) since Community Center da
 
 ## 4. Data Flow
 
+### Save-File Mode (default)
 ```
 In-game sleep
       │
@@ -145,12 +181,50 @@ GameStateDiff.compute()
   • bundle donation progress + bundle completions
       │
       ▼
+_run_analysis()  →  MorningBrief + GameStateDiff
 MorningBrief.as_dict()   →  output/morning_brief.json
 MorningBrief.as_text()   →  terminal box display
-build_llm_prompt()       →  output/coach_prompt.txt
-      │  (if --ollama)
+build_llm_prompt()       →  output/coach_prompt.txt   ← send to any LLM
+```
+
+### Live WebSocket Mode (--live)
+```
+stardew-mcp SMAPI mod broadcasts every 1 second:
+  ws://localhost:8765/game  →  {"type":"state","data":{...}}
+
+      │
       ▼
-output/coach_prompt.txt  ← send to any LLM manually
+LiveAdapter.get_snapshot()  or  .watch(callback)
+      │
+      ▼
+from_live_json(data)  →  GameState
+  (position, time_of_day, current_location, ascii_map populated)
+      │
+      ▼
+_run_analysis(state, yesterday=None)
+  (no diff in live mode — no _old files consulted)
+      │
+      ▼
+MorningBrief.as_text()  +  build_llm_prompt()
+  (prompt includes live section: time, location, ascii surroundings map)
+      │
+      ▼
+output/morning_brief.json  +  output/coach_prompt.txt
+```
+
+### Claude Desktop MCP Mode (stardew_mcp_server.py)
+```
+Claude Desktop  ←→  stdio  ←→  FastMCP server
+                                     │
+          ┌──────────────────────────┤
+          │                          │
+   get_live_state()           get_bundle_status()
+   get_surroundings()         get_fish_collection()
+   get_catchable_fish()       generate_coaching_prompt()
+          │                          │
+          ▼                          ▼
+    LiveAdapter              SaveParser
+    (WebSocket)              (most recent save)
 ```
 
 ---
@@ -240,13 +314,13 @@ The following collections are populated in Pelican but empty in Tolkien. Future 
 | XML Path | Tolkien | Pelican | Agent Support |
 |---|---|---|---|
 | `basicShipped/item` | 0 items | 199 items | Not yet |
-| `mineralsFound/item` | 0 items | 53 items | Not yet |
+| `mineralsFound/item` | 0 items | 53 items | ✅ Tracked (name + count, diff new types) |
 | `fishCaught/item` | 0 items | 73 species | ✅ Tracked (species count + diff) |
-| `archaeologyFound/item` | 0 items | 43 items | Not yet |
-| `achievements/int` | 0 | 30 | Not yet |
+| `archaeologyFound/item` | 0 items | 43 items | ✅ Tracked (name + count, diff new finds) |
+| `achievements/int` | 0 | 30 | ✅ Tracked (ID list, diff new unlocks) |
 | `professions/int` | 0 | 10 | ✅ Tracked |
-| `cookingRecipes/item` | 1 | 80 | ✅ Tracked (count) |
-| `craftingRecipes/item` | 11 | 129 | ✅ Tracked (count) |
+| `cookingRecipes/item` | 1 | 80 | ✅ Tracked (name list + diff new recipes) |
+| `craftingRecipes/item` | 11 | 129 | ✅ Tracked (name list + diff new recipes) |
 | `secretNotesSeen/int` | 0 | 36 | Not yet |
 | `specialItems` | 0 items | 15 items | Not yet |
 | `mailReceived/string` | 2 items | 286 items | Not yet |
@@ -300,6 +374,38 @@ CC bundle donation array:
 ### GameState (dataclass)
 Central data model. All fields default to zero/empty so partial saves still parse safely.
 
+Live-only fields (populated by `from_live_json()`, zero/empty in save-file mode):
+- `time_of_day: int` — military time 600–2600 (600=6am, 2600=2am next day)
+- `current_location: str` — current map location (e.g. "Farm", "Town")
+- `position_x / position_y: int` — tile coordinates
+- `ascii_map: str` — 61×61 ASCII surroundings map from SMAPI mod
+
+### from_live_json(data) → GameState
+Maps a stardew-mcp WebSocket state broadcast to a `GameState`. Money, stamina, health, skills, friendships, quests, inventory, world fields, and live-only fields are all populated. Fish collection and bundle data are NOT available from the WebSocket (read from save file instead).
+
+### LiveAdapter
+WebSocket client for the stardew-mcp SMAPI mod (`ws://localhost:8765/game`).
+- `get_snapshot() → GameState` — sends `{"type":"get_state"}`, waits for response
+- `watch(callback, interval_seconds=0)` — streams state broadcasts; fires `callback(GameState)` on each new in-game day (or each `interval_seconds` if set)
+
+Requires `pip install websockets`.
+
+### stardew_mcp_server.py — MCP Server for Claude Desktop
+Stdio-based MCP server using `FastMCP`. Exposes six tools:
+
+| Tool | Data source | Notes |
+|---|---|---|
+| `get_live_state` | WebSocket | Full state + vitals |
+| `get_surroundings` | WebSocket | ASCII map + nearby entities |
+| `get_catchable_fish` | WebSocket (season/weather) | Live conditions |
+| `get_bundle_status` | Save file | Reflects last in-game sleep |
+| `get_fish_collection` | Save file | Reflects last in-game sleep |
+| `generate_coaching_prompt` | WebSocket + save file | Combined prompt for complex planning |
+
+Configure via environment variables in `claude_desktop_config.json`:
+- `STARDEW_WS_URL` (default: `ws://localhost:8765/game`)
+- `STARDEW_SAVES_DIR` (default: `%APPDATA%\StardewValley\Saves`)
+
 ### SaveParser
 - `__init__(save_folder, use_old=False)` — selects current or `_old` file pair
 - `parse() → GameState` — runs both `_parse_farmer` and `_parse_world`
@@ -343,6 +449,9 @@ print(response.content[0].text)
 ### Constants and Helpers
 - `FISH_ID_NAMES: dict[int, str]` — 59 fish species mapped from integer save IDs (confirmed against stardewids/objects.json for 1.6)
 - `BUNDLE_ITEM_NAMES: dict[int, str]` — 80+ item IDs covering all standard and remixed bundle items
+- `MINERAL_NAMES: dict[int, str]` — 53 mineral types (gems + geode minerals, IDs 60–86, 538–578)
+- `ARTIFACT_NAMES: dict[int, str]` — 40 artifact types (IDs 96–127, 580–589)
+- `ACHIEVEMENT_NAMES: dict[int, str]` — 41 achievement IDs (0–40)
 - `FISH_SCHEDULE: list` — 60-entry availability table: `(name, seasons_frozenset, weather, location, min_fishing_level)`
 - `get_catchable_fish(season, is_raining, fishing_level) → list` — filters schedule by today's conditions, returns `(name, location, note)` tuples
 
@@ -350,6 +459,8 @@ print(response.content[0].text)
 - Auto-discovers the most recently modified save folder in `saves_dir`
 - Writes all outputs to `output_dir` (defaults to `../output` relative to `saves_dir`)
 - Debounces watchdog events with a 3-second window + 1.5-second write delay
+- `_run_analysis(today, yesterday)` — shared pipeline used by both save-file and live modes
+- `live_once(url)` / `live_watch(url)` — live WebSocket run modes using `LiveAdapter`
 - No LLM is called directly — `coach_prompt.txt` is written and the user sends it to their preferred LLM
 
 ---
@@ -397,9 +508,9 @@ print(MorningBrief(s).as_text())
 ## 9. Pending Enhancements
 
 ### Short Term
-- [ ] **Achievement tracking** — diff `achievements/int` list; report newly unlocked achievements
-- [ ] **Recipe tracking** — diff `cookingRecipes/item` and `craftingRecipes/item` to report newly learned recipes
-- [ ] **Mineral/artifact tracking** — diff `mineralsFound` and `archaeologyFound`
+- [x] **Achievement tracking** — diff `achievements/int` list; report newly unlocked achievements (`ACHIEVEMENT_NAMES` maps 40 IDs)
+- [x] **Recipe tracking** — `recipes_cooking`/`recipes_crafting` store full name lists; diffs report newly learned recipes by name
+- [x] **Mineral/artifact tracking** — diff `mineralsFound` and `archaeologyFound`; `MINERAL_NAMES` (53 types) and `ARTIFACT_NAMES` (40 types) sourced from stardewids/objects.json
 - [ ] **Multi-farm support** — when multiple save folders exist, prompt user to select or monitor all
 
 ### Medium Term
@@ -414,7 +525,11 @@ print(MorningBrief(s).as_text())
 - [ ] **Farm layout parser** — read building placement from the main save's `<locations>` element
 - [ ] **Web dashboard** — serve `morning_brief.json` via a simple Flask/FastAPI endpoint
 
+### Live / MCP (Completed)
+- [x] **Live WebSocket mode** — `LiveAdapter` + `--live`/`--live-url` CLI flags; connects to stardew-mcp SMAPI mod
+- [x] **Claude Desktop MCP server** — `stardew_mcp_server.py` exposes 6 tools via stdio MCP; configurable via `claude_desktop_config.json`
+
 ---
 
-*Last updated: 2026-03-05*
+*Last updated: 2026-03-04*
 *Game version tested: 1.6.15 | Python: 3.13*

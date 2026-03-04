@@ -69,6 +69,63 @@ PROFESSION_NAMES = {
 
 HOUSE_UPGRADE_LABELS = {0: "Cabin", 1: "Kitchen", 2: "Cellar", 3: "Full House"}
 
+# ── Mineral ID → display name (stardewids/objects.json, v1.6) ─────────────────
+MINERAL_NAMES: dict[int, str] = {
+    60: "Emerald",        62: "Aquamarine",     64: "Ruby",           66: "Amethyst",
+    68: "Topaz",          70: "Jade",           72: "Diamond",        74: "Prismatic Shard",
+    80: "Quartz",         82: "Fire Quartz",    84: "Frozen Tear",    86: "Earth Crystal",
+    538: "Alamite",       539: "Bixit",         540: "Barite",        541: "Erinite",
+    542: "Calcite",       543: "Dolomite",      544: "Esperite",      545: "Fluorapatite",
+    546: "Geminite",      547: "Gelvinite",     548: "Jamborite",     549: "Jagoite",
+    550: "Kyanite",       551: "Lunarite",      552: "Malachite",     553: "Neptunite",
+    554: "Lemonstone",    555: "Nekoit",        556: "Orpiment",      557: "Petrified Slime",
+    558: "Thunder Egg",   559: "Pyrite",        560: "Oceanium",      561: "Ghost Crystal",
+    562: "Tiger's Eye",   563: "Jasper",        564: "Opal",          565: "Fire Opal",
+    566: "Celestine",     567: "Marble",        568: "Sandstone",     569: "Granite",
+    570: "Basalt",        571: "Limestone",     572: "Soapstone",     573: "Hematite",
+    574: "Argillite",     575: "Obsidian",      576: "Slate",         577: "Fairy Stone",
+    578: "Star Shards",
+}
+
+# ── Artifact ID → display name (stardewids/objects.json, v1.6) ───────────────
+ARTIFACT_NAMES: dict[int, str] = {
+    96: "Dwarf Scroll I",      97: "Dwarf Scroll II",    98: "Dwarf Scroll III",
+    99: "Dwarf Scroll IV",     100: "Chipped Amphora",   101: "Arrowhead",
+    103: "Ancient Doll",       104: "Elvish Jewelry",    105: "Chewing Stick",
+    106: "Ornamental Fan",     107: "Dinosaur Egg",      108: "Rare Disc",
+    109: "Ancient Sword",      110: "Rusty Spoon",       111: "Rusty Spur",
+    112: "Rusty Cog",          113: "Chicken Statue",    114: "Ancient Seed",
+    115: "Prehistoric Tool",   116: "Dried Starfish",    117: "Anchor",
+    118: "Glass Shards",       119: "Bone Flute",        120: "Prehistoric Handaxe",
+    121: "Dwarvish Helm",      122: "Dwarf Gadget",      123: "Ancient Drum",
+    124: "Golden Mask",        125: "Golden Relic",      126: "Strange Doll",
+    127: "Strange Doll (green)",
+    580: "Prehistoric Skull",  581: "Skeleton Hand",     583: "Prehistoric Rib",
+    584: "Prehistoric Vertebra", 585: "Skeleton Tail",   586: "Fossilized Nautilus",
+    587: "Fossilized Amphibian", 589: "Trilobite",
+}
+
+# ── Achievement ID → display name ──────────────────────────────────────────────
+ACHIEVEMENT_NAMES: dict[int, str] = {
+    0:  "Greenhorn",         1:  "Cowpoke",          2:  "Homesteader",
+    3:  "Millionaire",       4:  "Legend",            5:  "A Complete Collection",
+    6:  "A New Life",        7:  "Mother Catch",      8:  "Fisherman",
+    9:  "Ol' Mariner",       10: "Master Angler",     11: "Sous Chef",
+    12: "Gourmet Chef",      13: "Craft Master",      14: "Jodi's Favorite",
+    15: "Moving Up",         16: "Living Large",      17: "Full House",
+    18: "Singular Talent",   19: "Master of the Five Ways",
+    20: "Mystery of the Stardrops",
+    21: "The Bottom",        22: "Protector of the Valley",
+    23: "Skull Cavern Invasion",
+    24: "The Skull Cavern is a Big Place",
+    25: "Local Legend",      26: "A Friend to the Animals",
+    27: "Nature's Bounty",   28: "Treasure Trove",    29: "The Pirate's Wife",
+    30: "Prairie King",      31: "Fector's Challenge", 32: "Land Baron",
+    33: "Polyculture",       34: "Monoculture",        35: "Beloved Farmer",
+    36: "Best Friends",      37: "Cliques",            38: "Networking",
+    39: "Popular",           40: "Everyone's Favorite",
+}
+
 # ── Fish item ID → display name (Stardew Valley 1.6, confirmed via stardewids) ─
 FISH_ID_NAMES: dict[int, str] = {
     128: "Pufferfish",      129: "Anchovy",           130: "Tuna",
@@ -385,9 +442,24 @@ class GameState:
     # ── Inventory ─────────────────────────────────────────────────────────────
     inventory_items: list = field(default_factory=list)  # list[dict]
 
-    # ── Recipes (counts only) ─────────────────────────────────────────────────
-    recipes_cooking_count: int = 0
-    recipes_crafting_count: int = 0
+    # ── Recipes ───────────────────────────────────────────────────────────────
+    recipes_cooking: list = field(default_factory=list)   # list[str] — recipe names
+    recipes_crafting: list = field(default_factory=list)  # list[str]
+
+    @property
+    def recipes_cooking_count(self) -> int:
+        return len(self.recipes_cooking)
+
+    @property
+    def recipes_crafting_count(self) -> int:
+        return len(self.recipes_crafting)
+
+    # ── Achievements ──────────────────────────────────────────────────────────
+    achievements: list = field(default_factory=list)     # list[int] — achievement IDs
+
+    # ── Collection ────────────────────────────────────────────────────────────
+    minerals_found: dict = field(default_factory=dict)   # {name: count}
+    artifacts_found: dict = field(default_factory=dict)  # {name: count}
 
     # ── World-file extras ─────────────────────────────────────────────────────
     mine_lowest_level_reached: int = 0
@@ -400,6 +472,146 @@ class GameState:
     # ── Community Center ──────────────────────────────────────────────────────
     cc_rooms_complete: list = field(default_factory=list)    # list[bool], 6 rooms
     cc_bundles: list = field(default_factory=list)           # list[BundleState]
+
+    # ── Live mode extras (WebSocket / stardew-mcp only) ───────────────────────
+    position_x: int = 0
+    position_y: int = 0
+    current_location: str = ""
+    time_of_day: int = 0          # military time: 600–2600 (600=6am, 1400=2pm)
+    ascii_map: str = ""           # 61×61 surroundings from SMAPI mod
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LIVE WEBSOCKET ADAPTER  (stardew-mcp SMAPI mod)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _fmt_time(t: int) -> str:
+    """Convert military game time (e.g. 630, 1400) to '6:30am' / '2:00pm'."""
+    h, m = divmod(t, 100)
+    suffix = "am" if h < 12 or h == 24 else "pm"
+    h12 = h % 12 or 12
+    return f"{h12}:{m:02d}{suffix}"
+
+
+def from_live_json(data: dict) -> "GameState":
+    """Map a stardew-mcp WebSocket state broadcast to a GameState."""
+    s = GameState()
+    p = data.get("player", {})
+    w = data.get("world", {})
+    sur = data.get("surroundings", {})
+
+    # Finances / vitals
+    s.money    = int(p.get("money", 0))
+    s.stamina  = float(p.get("stamina", 270))
+    s.health   = int(p.get("health", 100))
+
+    # Skills
+    skills = p.get("skills", {})
+    s.farming_level  = int(skills.get("farming", 0))
+    s.fishing_level  = int(skills.get("fishing", 0))
+    s.foraging_level = int(skills.get("foraging", 0))
+    s.mining_level   = int(skills.get("mining", 0))
+    s.combat_level   = int(skills.get("combat", 0))
+    s.luck_level     = int(skills.get("luck", 0))
+
+    # Friendships
+    for npc, pts in p.get("friendships", {}).items():
+        s.friendship.append(FriendshipState(npc=npc, points=int(pts)))
+
+    # Quests
+    for q in p.get("questLog", []):
+        s.quests.append(QuestState(
+            title=str(q.get("title", "")),
+            completed=bool(q.get("completed", False)),
+            money_reward=int(q.get("reward", 0)),
+        ))
+
+    # Inventory
+    s.inventory_items = [
+        {"id": str(item.get("id", "")), "count": int(item.get("count", 1)),
+         "quality": int(item.get("quality", 0))}
+        for item in p.get("inventory", [])
+    ]
+
+    # World
+    s.season           = str(w.get("season", "Spring"))
+    s.day              = int(w.get("dayOfMonth", 1))
+    s.year             = int(w.get("year", 1))
+    s.weather_tomorrow = str(w.get("weather", "Sun"))
+    s.is_raining       = str(w.get("weather", "")).lower() in ("rain", "storm")
+
+    # Live-only
+    s.time_of_day      = int(w.get("timeOfDay", 0))
+    s.current_location = str(w.get("location", ""))
+    pos = p.get("position", {})
+    s.position_x = int(pos.get("x", 0))
+    s.position_y = int(pos.get("y", 0))
+    s.ascii_map   = str(sur.get("asciiMap", ""))
+
+    return s
+
+
+class LiveAdapter:
+    """
+    WebSocket client for the stardew-mcp SMAPI mod.
+    Connects to ws://localhost:8765/game and streams live game state.
+
+    Requires: pip install websockets
+    """
+
+    def __init__(self, url: str = "ws://localhost:8765/game"):
+        self.url = url
+
+    def _import_ws(self):
+        try:
+            import websockets.sync.client as ws_client  # type: ignore[import]
+            return ws_client
+        except ImportError:
+            raise RuntimeError(
+                "websockets not installed. Run:  pip install websockets"
+            )
+
+    def get_snapshot(self) -> GameState:
+        """Connect, request one state snapshot, and disconnect."""
+        import json as _json
+        ws_client = self._import_ws()
+        with ws_client.connect(self.url, open_timeout=5) as conn:
+            conn.send(_json.dumps({"type": "get_state"}))
+            for _ in range(20):
+                raw = conn.recv(timeout=3)
+                msg = _json.loads(raw)
+                if msg.get("type") in ("state", "response") and "data" in msg:
+                    return from_live_json(msg["data"])
+        raise RuntimeError("No state received from stardew-mcp mod")
+
+    def watch(self, callback, interval_seconds: int = 0) -> None:
+        """
+        Stream state broadcasts from the SMAPI mod.
+        Calls callback(GameState) on each new in-game day, or every
+        interval_seconds if > 0.
+        """
+        import json as _json
+        import time as _time
+        ws_client = self._import_ws()
+        last_day  = None
+        last_fire = 0.0
+        with ws_client.connect(self.url) as conn:
+            while True:
+                try:
+                    raw = conn.recv(timeout=5)
+                except TimeoutError:
+                    continue
+                msg = _json.loads(raw)
+                if msg.get("type") != "state" or "data" not in msg:
+                    continue
+                state = from_live_json(msg["data"])
+                now   = _time.monotonic()
+                new_day  = state.day != last_day
+                interval_hit = interval_seconds > 0 and now - last_fire >= interval_seconds
+                if new_day or interval_hit:
+                    last_day  = state.day
+                    last_fire = now
+                    callback(state)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -634,9 +846,17 @@ class SaveParser:
                 "upgrade_level": int(ulvl) if ulvl is not None else None,
             })
 
-        # ── Recipes (counts only — list parsing is done by generate_schema.py)
-        state.recipes_cooking_count  = len(root.findall("cookingRecipes/item"))
-        state.recipes_crafting_count = len(root.findall("craftingRecipes/item"))
+        # ── Recipes — store names so we can diff newly learned ones
+        state.recipes_cooking  = sorted(set(
+            item.findtext("key/string", "")
+            for item in root.findall("cookingRecipes/item")
+            if item.findtext("key/string", "")
+        ))
+        state.recipes_crafting = sorted(set(
+            item.findtext("key/string", "")
+            for item in root.findall("craftingRecipes/item")
+            if item.findtext("key/string", "")
+        ))
 
         # ── Fish caught: int ID → [count, maxSize]
         state.fish_caught = {}
@@ -654,6 +874,45 @@ class SaveParser:
             count_el = item.find("value/ArrayOfInt/int")
             count = int(count_el.text or 1) if count_el is not None else 1
             state.fish_caught[name] = count
+
+        # ── Minerals found: mineral_id (int) → count
+        state.minerals_found = {}
+        for item in root.findall("mineralsFound/item"):
+            k_el = item.find("key/int")
+            if k_el is None:
+                continue
+            try:
+                mid = int(k_el.text or 0)
+            except (ValueError, TypeError):
+                continue
+            name = MINERAL_NAMES.get(mid, f"Mineral #{mid}")
+            v_el = item.find("value/int")
+            count = int(v_el.text or 0) if v_el is not None else 0
+            state.minerals_found[name] = count
+
+        # ── Artifacts found: artifact_id (int) → found count
+        #    Value is ArrayOfInt: [number found, number donated to museum]
+        state.artifacts_found = {}
+        for item in root.findall("archaeologyFound/item"):
+            k_el = item.find("key/int")
+            if k_el is None:
+                continue
+            try:
+                aid = int(k_el.text or 0)
+            except (ValueError, TypeError):
+                continue
+            name = ARTIFACT_NAMES.get(aid, f"Artifact #{aid}")
+            ints = [el.text for el in item.findall("value/ArrayOfInt/int")]
+            found = int(ints[0] or 0) if len(ints) > 0 else 0
+            state.artifacts_found[name] = found
+
+        # ── Achievements: list of int IDs
+        state.achievements = []
+        for ach_el in root.findall("achievements/int"):
+            try:
+                state.achievements.append(int(ach_el.text or 0))
+            except (ValueError, TypeError):
+                pass
 
     # ── World Data (from main save file) ─────────────────────────────────────
 
@@ -916,6 +1175,40 @@ class GameStateDiff:
         if new_fish:
             results["new_fish"] = f"New fish species caught: {', '.join(sorted(new_fish))}."
 
+        # ── New recipes learned ────────────────────────────────────────────────
+        new_cooking  = set(t.recipes_cooking)  - set(y.recipes_cooking)
+        new_crafting = set(t.recipes_crafting) - set(y.recipes_crafting)
+        if new_cooking:
+            results["new_recipes_cooking"]  = (
+                f"New cooking recipe(s) learned: {', '.join(sorted(new_cooking))}."
+            )
+        if new_crafting:
+            results["new_recipes_crafting"] = (
+                f"New crafting recipe(s) learned: {', '.join(sorted(new_crafting))}."
+            )
+
+        # ── New minerals found ─────────────────────────────────────────────────
+        new_minerals = set(t.minerals_found) - set(y.minerals_found)
+        if new_minerals:
+            results["new_minerals"] = (
+                f"New mineral(s) found: {', '.join(sorted(new_minerals))}."
+            )
+
+        # ── New artifacts found ────────────────────────────────────────────────
+        new_artifacts = set(t.artifacts_found) - set(y.artifacts_found)
+        if new_artifacts:
+            results["new_artifacts"] = (
+                f"New artifact(s) discovered: {', '.join(sorted(new_artifacts))}."
+            )
+
+        # ── New achievements unlocked ──────────────────────────────────────────
+        new_ach = set(t.achievements) - set(y.achievements)
+        if new_ach:
+            names = [ACHIEVEMENT_NAMES.get(a, f"Achievement #{a}") for a in sorted(new_ach)]
+            results["new_achievements"] = (
+                f"Achievement(s) unlocked: {', '.join(names)}!"
+            )
+
         # ── Bundle progress ───────────────────────────────────────────────────
         y_bundles = {b.id: b for b in y.cc_bundles}
         t_bundles = {b.id: b for b in t.cc_bundles}
@@ -1113,6 +1406,20 @@ class MorningBrief:
                 {"name": name, "location": loc, "note": note}
                 for name, loc, note in get_catchable_fish(s.season, s.is_raining, s.fishing_level)
             ],
+            "achievements": {
+                "count":  len(s.achievements),
+                "names":  [ACHIEVEMENT_NAMES.get(a, f"#{a}") for a in sorted(s.achievements)],
+            },
+            "collection": {
+                "minerals_found":  len(s.minerals_found),
+                "artifacts_found": len(s.artifacts_found),
+                "minerals":  dict(sorted(s.minerals_found.items())),
+                "artifacts": dict(sorted(s.artifacts_found.items())),
+            },
+            "recipes": {
+                "cooking_known":  s.recipes_cooking_count,
+                "crafting_known": s.recipes_crafting_count,
+            },
             "community_center": {
                 "rooms_complete": s.cc_rooms_complete,
                 "rooms_done": sum(s.cc_rooms_complete) if s.cc_rooms_complete else 0,
@@ -1153,6 +1460,10 @@ class MorningBrief:
         wallet_str = f"{s.money:,}g"
         earned_str = f"{s.total_money_earned:,}g earned all-time"
 
+        # Live-mode extras
+        time_str = f"  Time:      {_fmt_time(s.time_of_day)}" if s.time_of_day else None
+        loc_str  = f"  Location:  {s.current_location}" if s.current_location else None
+
         lines = [
             divider("="),
             f"|{'  MORNING BRIEF':^{W}}|",
@@ -1162,6 +1473,12 @@ class MorningBrief:
             row(f"  Luck:      {luck_label} ({s.daily_luck:+.3f})"),
             row(f"  Tip:       {luck_tip[:W - 13]}"),
             row(f"  Tomorrow:  {self._weather_desc()[:W - 13]}"),
+        ]
+        if time_str:
+            lines.append(row(time_str))
+        if loc_str:
+            lines.append(row(loc_str))
+        lines += [
             divider("-"),
             f"|{'  SKILLS':^{W}}|",
             row(
@@ -1329,6 +1646,15 @@ def build_llm_prompt(brief: MorningBrief, diff: Optional[GameStateDiff] = None) 
     else:
         cc_section = "Community Center: bundle data unavailable (save not yet loaded)."
 
+    # ── Live-mode context (WebSocket only) ────────────────────────────────────
+    live_section = ""
+    if s.time_of_day:
+        live_section += f"\n## Live Game State\n"
+        live_section += f"- Current time: {_fmt_time(s.time_of_day)}\n"
+        live_section += f"- Location: {s.current_location} (tile {s.position_x},{s.position_y})\n"
+        if s.ascii_map:
+            live_section += f"\n### Surroundings Map (61×61)\n```\n{s.ascii_map}\n```\n"
+
     # ── Ginger Island walnut hint (only if player has found any) ─────────────
     walnut_line = ""
     if s.golden_walnuts_found > 0:
@@ -1382,6 +1708,10 @@ Fish collection: {fish_caught_str}
 ## Community Center Progress
 {cc_section}
 
+## Collection & Achievements
+- Minerals found: {len(s.minerals_found)} types | Artifacts found: {len(s.artifacts_found)} types
+- Achievements unlocked: {len(s.achievements)} total
+{live_section}
 ## Your Task
 Write a friendly, personalised **Daily Walkthrough** for Day {s.day} of {s.season}, Year {s.year}.
 
@@ -1413,6 +1743,16 @@ Consider their mine depth, house level ({s.house_upgrade_level}/3), and chosen p
 Think ahead: what should they be building toward over the next week?
 
 Keep it practical, specific, and encouraging. Use actual numbers from the data above.
+
+---
+## Agent Instructions (for AI systems)
+If you are an AI agent receiving this prompt as a tool call result or sub-task:
+- For simple daily advice: respond directly to the player in the sections above.
+- For complex multi-step tasks (season planning, full CC roadmap, farm optimisation):
+  break the work into numbered sub-tasks, reason through each one separately,
+  then synthesise a final recommendation. You may call additional tools or spawn
+  further sub-agents if your environment supports it.
+- Always ground your advice in the specific numbers provided above — avoid generic tips.
 """
     return prompt
 
@@ -1492,47 +1832,67 @@ class GameStateAgent:
 
     # ── Analysis ──────────────────────────────────────────────────────────────
 
+    def _run_analysis(self, today: GameState, yesterday: Optional[GameState]) -> None:
+        """Shared analysis pipeline: diff → brief → JSON → prompt."""
+        print()
+        print("=" * 50)
+
+        # Diff
+        diff = None
+        if yesterday:
+            diff = GameStateDiff(yesterday, today)
+            print(diff.as_text())
+            print()
+
+        # Morning Brief (text)
+        brief = MorningBrief(today)
+        print(brief.as_text())
+        print()
+
+        # Morning Brief (JSON) → output/
+        brief_json = json.dumps(brief.as_dict(), indent=2, ensure_ascii=False)
+        json_path  = self.output_dir / "morning_brief.json"
+        json_path.write_text(brief_json, encoding="utf-8")
+        log.info(f"Brief saved → {json_path}")
+
+        # LLM Prompt → output/
+        prompt      = build_llm_prompt(brief, diff)
+        prompt_path = self.output_dir / "coach_prompt.txt"
+        prompt_path.write_text(prompt, encoding="utf-8")
+        log.info(f"LLM prompt saved → {prompt_path}")
+
+        print("--- LLM Coach Prompt preview (first 400 chars) ---")
+        print(prompt[:400])
+        print("  [... full prompt saved to coach_prompt.txt]")
+        print("=" * 50)
+
     def on_save_detected(self) -> None:
         """Run a full analysis cycle (parse → diff → brief → prompt)."""
         log.info("Running analysis…")
         try:
             today     = self.parse_current()
             yesterday = self.parse_previous()
-
-            print()
-            print("=" * 50)
-
-            # Diff
-            diff = None
-            if yesterday:
-                diff = GameStateDiff(yesterday, today)
-                print(diff.as_text())
-                print()
-
-            # Morning Brief (text)
-            brief = MorningBrief(today)
-            print(brief.as_text())
-            print()
-
-            # Morning Brief (JSON) → output/
-            brief_json = json.dumps(brief.as_dict(), indent=2, ensure_ascii=False)
-            json_path  = self.output_dir / "morning_brief.json"
-            json_path.write_text(brief_json, encoding="utf-8")
-            log.info(f"Brief saved → {json_path}")
-
-            # LLM Prompt → output/
-            prompt      = build_llm_prompt(brief, diff)
-            prompt_path = self.output_dir / "coach_prompt.txt"
-            prompt_path.write_text(prompt, encoding="utf-8")
-            log.info(f"LLM prompt saved → {prompt_path}")
-
-            print("--- LLM Coach Prompt preview (first 400 chars) ---")
-            print(prompt[:400])
-            print("  [... full prompt saved to coach_prompt.txt]")
-            print("=" * 50)
-
+            self._run_analysis(today, yesterday)
         except Exception:
             log.exception("Error during analysis — check the save files.")
+
+    # ── Live Run Modes ─────────────────────────────────────────────────────────
+
+    def live_once(self, live_url: str) -> None:
+        """Get one live snapshot via WebSocket and run analysis."""
+        adapter = LiveAdapter(live_url)
+        state   = adapter.get_snapshot()
+        self._run_analysis(state, yesterday=None)
+
+    def live_watch(self, live_url: str) -> None:
+        """Watch for in-game day changes via WebSocket and re-analyse on each new day."""
+        adapter = LiveAdapter(live_url)
+        print(f"\nLive mode — connected to {live_url}")
+        print("Analysis fires on each new in-game day. Press Ctrl+C to stop.\n")
+        try:
+            adapter.watch(lambda state: self._run_analysis(state, yesterday=None))
+        except KeyboardInterrupt:
+            log.info("Live watcher stopped.")
 
     # ── Run Modes ─────────────────────────────────────────────────────────────
 
@@ -1595,6 +1955,16 @@ def main() -> None:
         action="store_true",
         help="Print the Morning Brief as JSON to stdout instead of formatted text.",
     )
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="Use stardew-mcp WebSocket for live game state instead of save files.",
+    )
+    parser.add_argument(
+        "--live-url",
+        default="ws://localhost:8765/game",
+        help="stardew-mcp WebSocket URL (default: ws://localhost:8765/game).",
+    )
     args = parser.parse_args()
 
     saves_dir = args.saves_dir.expanduser().resolve()
@@ -1604,6 +1974,14 @@ def main() -> None:
         sys.exit(1)
 
     agent = GameStateAgent(saves_dir)
+
+    # ── Live WebSocket mode ────────────────────────────────────────────────
+    if args.live:
+        if args.once:
+            agent.live_once(args.live_url)
+        else:
+            agent.live_watch(args.live_url)
+        return
 
     if args.json:
         # JSON-only output mode
