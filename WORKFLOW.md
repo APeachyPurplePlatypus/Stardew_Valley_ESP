@@ -25,20 +25,9 @@ An automated agent that reads Stardew Valley save files, diffs the game state be
 | `python agents/game_state_agent.py --saves-dir saves` | Watch mode (triggers on each in-game sleep) |
 | `python agents/game_state_agent.py --saves-dir saves --json` | JSON output only (for piping) |
 | `python agents/game_state_agent.py` | Live mode (reads from `%APPDATA%\StardewValley\Saves`) |
-| `python agents/game_state_agent.py --saves-dir saves --once --ollama` | One-shot + Ollama coaching response |
 | `python scripts/parse_save.py` | Dump all XML attributes to `output/Stardew_Save_Attributes.xlsx` |
 
-**Ollama flags:**
-
-| Flag | Default | Description |
-|---|---|---|
-| `--ollama` | off | Enable local LLM call via Ollama |
-| `--ollama-model` | `ministral:8b` | Ollama model tag to use |
-| `--ollama-url` | `http://localhost:11434` | Ollama server base URL |
-| `--ollama-timeout` | `300` | Seconds to wait for response |
-| `--no-think` | off | Suppress chain-of-thought for qwen3/deepseek-r1 models |
-
-**Dependencies:** `watchdog` (watch mode only), `openpyxl` (parse_save.py only), Ollama (`--ollama` only — no pip install)
+**Dependencies:** `watchdog` (watch mode only), `openpyxl` (parse_save.py only)
 
 ---
 
@@ -60,7 +49,7 @@ Stardew_Valley_ESP/
 │   ├── .gitkeep
 │   ├── morning_brief.json      # Structured game state (re-created each run)
 │   ├── coach_prompt.txt        # LLM-ready coaching prompt (re-created each run)
-│   ├── coach_response.md       # Ollama response (only when --ollama, UTF-8 with emoji)
+│   │   # coach_response.md not generated — use output/coach_prompt.txt with any LLM
 │   └── Stardew_Save_Attributes.xlsx  # Full XML attribute dump (re-created by parse_save.py)
 │
 ├── input/                      # Reserved for future input data
@@ -106,16 +95,9 @@ Stardew_Valley_ESP/
          ┌────────▼─────────┐   ┌────────────────────────┐
          │  Text summary    │   │  build_llm_prompt()     │
          │  (terminal)      │   │  coach_prompt.txt       │
-         └──────────────────┘   └────────────┬───────────┘
-                                             │ --ollama flag
-                                ┌────────────▼───────────┐
-                                │  call_ollama()          │
-                                │  → Ollama REST API      │
-                                │  coach_response.md      │
-                                └────────────────────────┘
+         └──────────────────┘   └────────────────────────┘
          output/morning_brief.json
-         output/coach_prompt.txt
-         output/coach_response.md  (only when --ollama)
+         output/coach_prompt.txt   ← send to any LLM (Claude, GPT-4, etc.)
 ```
 
 ### SaveParser — Two-File Strategy
@@ -168,7 +150,7 @@ MorningBrief.as_text()   →  terminal box display
 build_llm_prompt()       →  output/coach_prompt.txt
       │  (if --ollama)
       ▼
-call_ollama()            →  output/coach_response.md + terminal print
+output/coach_prompt.txt  ← send to any LLM manually
 ```
 
 ---
@@ -342,37 +324,33 @@ Includes dedicated **Fishing** section (today's catchable fish by season + weath
 
 Prompt is ~2,000–3,000 tokens depending on CC bundle count; recommended minimum model context window: **8,192 tokens**.
 
+**Sending the prompt to an LLM:**
+```python
+import anthropic
+from pathlib import Path
+
+client = anthropic.Anthropic()
+prompt = Path("output/coach_prompt.txt").read_text(encoding="utf-8")
+
+response = client.messages.create(
+    model="claude-opus-4-6",
+    max_tokens=2048,
+    messages=[{"role": "user", "content": prompt}]
+)
+print(response.content[0].text)
+```
+
 ### Constants and Helpers
 - `FISH_ID_NAMES: dict[int, str]` — 59 fish species mapped from integer save IDs (confirmed against stardewids/objects.json for 1.6)
 - `BUNDLE_ITEM_NAMES: dict[int, str]` — 80+ item IDs covering all standard and remixed bundle items
 - `FISH_SCHEDULE: list` — 60-entry availability table: `(name, seasons_frozenset, weather, location, min_fishing_level)`
 - `get_catchable_fish(season, is_raining, fishing_level) → list` — filters schedule by today's conditions, returns `(name, location, note)` tuples
 
-### call_ollama(prompt, model, base_url, timeout, think)
-Sends the coaching prompt to a local Ollama instance via stdlib `urllib` (no pip install needed).
-
-- `stream=False` — waits for the full response before returning
-- `think=False` — prepends `/no_think` to the prompt and sets `{"think": false}` in the request body; suppresses chain-of-thought for `qwen3` and `deepseek-r1` models
-- Raises `RuntimeError` if Ollama is unreachable (surfaced as `[Ollama ERROR]` in terminal)
-- Response saved to `output/coach_response.md` (UTF-8) before printing, so emoji are always preserved even if the terminal can't render them
-
-**To call with Claude instead:**
-```python
-import anthropic
-client = anthropic.Anthropic()
-response = client.messages.create(
-    model="claude-opus-4-6",
-    max_tokens=1024,
-    messages=[{"role": "user", "content": prompt}]
-)
-print(response.content[0].text)
-```
-
 ### GameStateAgent
 - Auto-discovers the most recently modified save folder in `saves_dir`
 - Writes all outputs to `output_dir` (defaults to `../output` relative to `saves_dir`)
 - Debounces watchdog events with a 3-second window + 1.5-second write delay
-- Ollama params: `ollama`, `ollama_model`, `ollama_url`, `ollama_timeout`, `ollama_think` — all exposed as CLI flags
+- No LLM is called directly — `coach_prompt.txt` is written and the user sends it to their preferred LLM
 
 ---
 
@@ -425,7 +403,7 @@ print(MorningBrief(s).as_text())
 - [ ] **Multi-farm support** — when multiple save folders exist, prompt user to select or monitor all
 
 ### Medium Term
-- [x] **LLM integration** — Ollama local LLM via `--ollama` flag; `call_ollama()` uses stdlib urllib, no pip deps
+- [x] **LLM prompt generation** — `coach_prompt.txt` written on every run; send to any LLM (Claude API, GPT-4, etc.)
 - [x] **Fish collection tracking** — diff `fishCaught/item` to report new species; `FISH_ID_NAMES` maps 59 species
 - [x] **Fish availability lookup** — `FISH_SCHEDULE` + `get_catchable_fish()` lists catchable fish by season/weather/level
 - [x] **Bundle tracker** — parse `bundleData` and Community Center donation booleans from main save; surfaces closest-to-complete bundles in prompt
