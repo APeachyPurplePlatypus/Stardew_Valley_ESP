@@ -1043,13 +1043,16 @@ class SaveParser:
                 item_name = (
                     BUNDLE_ITEM_NAMES.get(item_id)
                     or FISH_ID_NAMES.get(item_id)
-                    or f"Item #{item_id}"
+                    or (f"{qty:,}g" if item_id == -1 else f"Item #{item_id}")
                 )
                 bundle_items.append(BundleItem(
                     item_id=item_id, item_name=item_name,
                     quantity=qty, quality=quality, donated=donated,
                 ))
 
+            # Clamp required to actual item count (remixed bundles can store
+            # a numRequired larger than the items defined in the bundle).
+            effective_required = min(required, len(items_def)) if len(items_def) > 0 else required
             state.cc_bundles.append(BundleState(
                 id=bundle_id,
                 name=defn["name"],
@@ -1057,8 +1060,8 @@ class SaveParser:
                 items=bundle_items,
                 items_donated=donated_count,
                 items_total=len(items_def),
-                required=required,
-                is_complete=(donated_count >= required),
+                required=effective_required,
+                is_complete=(donated_count >= effective_required),
             ))
 
     # Older saves store weatherForTomorrow as an integer enum; newer saves use
