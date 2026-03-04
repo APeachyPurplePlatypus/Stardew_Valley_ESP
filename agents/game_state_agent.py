@@ -96,16 +96,18 @@ log = logging.getLogger(__name__)
 # OLLAMA LOCAL LLM
 # ─────────────────────────────────────────────────────────────────────────────
 
-def call_ollama(prompt: str, model: str, base_url: str) -> str:
+def call_ollama(prompt: str, model: str, base_url: str, timeout: int = 300, think: bool = True) -> str:
     """Send prompt to a local Ollama instance and return the full response text."""
     import urllib.request
     import urllib.error
 
-    payload = json.dumps({
-        "model":  model,
-        "prompt": prompt,
-        "stream": False,
-    }).encode()
+    # qwen3 / deepseek-r1: prepend /no_think to suppress chain-of-thought reasoning
+    effective_prompt = prompt if think else f"/no_think\n{prompt}"
+    body: dict = {"model": model, "prompt": effective_prompt, "stream": False}
+    if not think:
+        body["think"] = False  # belt-and-suspenders for Ollama versions that support it
+
+    payload = json.dumps(body).encode()
 
     req = urllib.request.Request(
         f"{base_url.rstrip('/')}/api/generate",
@@ -114,7 +116,7 @@ def call_ollama(prompt: str, model: str, base_url: str) -> str:
         method="POST",
     )
     try:
-        with urllib.request.urlopen(req, timeout=120) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             data = json.loads(resp.read().decode())
             return data.get("response", "").strip()
     except urllib.error.URLError as e:
@@ -1050,16 +1052,20 @@ class GameStateAgent:
         ollama: bool = False,
         ollama_model: str = "ministral:8b",
         ollama_url: str = "http://localhost:11434",
+        ollama_timeout: int = 300,
+        ollama_think: bool = True,
     ):
-        self.saves_dir    = saves_dir
-        self.save_folder  = self._find_save_folder()
+        self.saves_dir      = saves_dir
+        self.save_folder    = self._find_save_folder()
         # Output dir: caller can override; defaults to ../output relative to saves_dir
-        self.output_dir   = output_dir or (saves_dir.parent / "output")
+        self.output_dir     = output_dir or (saves_dir.parent / "output")
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._observer: Optional[Observer] = None
-        self.ollama       = ollama
-        self.ollama_model = ollama_model
-        self.ollama_url   = ollama_url
+        self.ollama         = ollama
+        self.ollama_model   = ollama_model
+        self.ollama_url     = ollama_url
+        self.ollama_timeout = ollama_timeout
+        self.ollama_think   = ollama_think
         log.info(f"Save folder: {self.save_folder}")
         log.info(f"Output dir:  {self.output_dir}")
 
@@ -1129,13 +1135,17 @@ class GameStateAgent:
             if self.ollama:
                 print(f"\n[Ollama] Querying {self.ollama_model} ...")
                 try:
-                    response = call_ollama(prompt, self.ollama_model, self.ollama_url)
-                    print("\n" + "=" * 60)
-                    print(response)
-                    print("=" * 60 + "\n")
-                    response_path = self.output_dir / "coach_response.txt"
+                    response = call_ollama(prompt, self.ollama_model, self.ollama_url, self.ollama_timeout, self.ollama_think)
+                    # Save to file first (always UTF-8)
+                    response_path = self.output_dir / "coach_response.md"
                     response_path.write_text(response, encoding="utf-8")
                     log.info(f"Coach response saved -> {response_path}")
+                    # Print to terminal — replace chars the console can't display
+                    enc = sys.stdout.encoding or "utf-8"
+                    safe = response.encode(enc, errors="replace").decode(enc, errors="replace")
+                    print("\n" + "=" * 60)
+                    print(safe)
+                    print("=" * 60 + "\n")
                 except RuntimeError as e:
                     print(f"[Ollama ERROR] {e}")
 
@@ -1218,6 +1228,17 @@ def main() -> None:
         default="http://localhost:11434",
         help="Ollama base URL (default: http://localhost:11434).",
     )
+    parser.add_argument(
+        "--ollama-timeout",
+        type=int,
+        default=300,
+        help="Seconds to wait for Ollama response (default: 300).",
+    )
+    parser.add_argument(
+        "--no-think",
+        action="store_true",
+        help="Disable extended reasoning for thinking models like qwen3.",
+    )
     args = parser.parse_args()
 
     saves_dir = args.saves_dir.expanduser().resolve()
@@ -1231,6 +1252,8 @@ def main() -> None:
         ollama=args.ollama,
         ollama_model=args.ollama_model,
         ollama_url=args.ollama_url,
+        ollama_timeout=args.ollama_timeout,
+        ollama_think=not args.no_think,
     )
 
     if args.json:
