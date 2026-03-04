@@ -184,7 +184,12 @@ def get_catchable_fish() -> str:
     and fishing skill level. Includes location hints and minimum skill requirements.
     """
     state = _get_live_state()
-    fish  = get_catchable_fish(state.season, state.is_raining, state.fishing_level)
+    fish  = get_catchable_fish(
+        state.season, state.is_raining, state.fishing_level,
+        has_rusty_key=state.has_rusty_key,
+        mine_level=state.deepest_mine_level,
+        has_island_access=state.golden_walnuts_found > 0,
+    )
     result = {
         "season":         state.season,
         "is_raining":     state.is_raining,

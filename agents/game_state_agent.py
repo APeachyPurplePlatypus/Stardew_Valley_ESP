@@ -273,8 +273,62 @@ FISH_SCHEDULE: list = [
     ("Glacierfish Jr.",  _S({"winter"}),                      "any",  "Arrowhead Island [Qi Quest]", 6),
 ]
 
+# ── Season-locked items (for CC bundle filtering) ────────────────────────────
+# Items in these sets can ONLY be obtained in the listed season(s).
+# Items NOT listed here are treated as obtainable any season (bars, gems,
+# artisan goods, crab pot items, monster drops, etc.).
+SEASONAL_ITEMS: dict[str, set[str]] = {
+    "spring": {
+        "Parsnip", "Green Bean", "Cauliflower", "Potato",
+        "Wild Horseradish", "Daffodil", "Leek", "Dandelion",
+        "Catfish", "Shad", "Eel",
+        "Sunfish", "Blue Jazz", "Tulip",
+    },
+    "summer": {
+        "Tomato", "Hot Pepper", "Blueberry", "Melon",
+        "Spice Berry", "Grape", "Sweet Pea",
+        "Pufferfish", "Octopus", "Red Snapper", "Tilapia",
+        "Sunflower", "Red Cabbage", "Poppy", "Summer Spangle",
+        "Fiddlehead Fern", "Starfruit",
+    },
+    "fall": {
+        "Corn", "Eggplant", "Pumpkin", "Yam",
+        "Common Mushroom", "Wild Plum", "Hazelnut", "Blackberry",
+        "Walleye", "Salmon", "Cranberries",
+        "Sunflower", "Fairy Rose", "Amaranth", "Artichoke",
+    },
+    "winter": {
+        "Winter Root", "Crystal Fruit", "Snow Yam", "Crocus",
+        "Nautilus Shell",
+    },
+}
 
-def get_catchable_fish(season: str, is_raining: bool, fishing_level: int = 0) -> list:
+
+def _is_item_in_season(item_name: str, season: str) -> bool:
+    """Check if an item is obtainable in the given season.
+
+    Items not in the SEASONAL_ITEMS dict are assumed to be available year-round.
+    Items listed for the given season return True.
+    Vault gold bundles (names like "2,500g") are always actionable.
+    """
+    # Vault gold bundles are always actionable
+    if item_name.replace(",", "").rstrip("g").isdigit():
+        return True
+    season_lower = season.lower()
+    # Check if this item appears in any seasonal set
+    is_seasonal = False
+    for s_name, items in SEASONAL_ITEMS.items():
+        if item_name in items:
+            is_seasonal = True
+            if s_name == season_lower:
+                return True
+    # If the item is not in any seasonal set, it's available any season
+    return not is_seasonal
+
+
+def get_catchable_fish(season: str, is_raining: bool, fishing_level: int = 0, *,
+                       has_rusty_key: bool = False, mine_level: int = 0,
+                       has_island_access: bool = False) -> list:
     """
     Return sorted list of (name, location, level_note) tuples catchable today.
 
@@ -282,9 +336,14 @@ def get_catchable_fish(season: str, is_raining: bool, fishing_level: int = 0) ->
         season: Current season (Spring/Summer/Fall/Winter)
         is_raining: True if currently raining or storming
         fishing_level: Player's Fishing skill level (used for min-level notes)
+        has_rusty_key: Player has the Rusty Key (unlocks Sewers)
+        mine_level: Deepest mine level reached (filters mine-level fish)
+        has_island_access: Player has reached Ginger Island
     """
+    import re
     season_lower = season.lower()
     results = []
+    filtered_count = 0
     for name, seasons, condition, location, min_level in FISH_SCHEDULE:
         if season_lower not in seasons:
             continue
@@ -292,9 +351,36 @@ def get_catchable_fish(season: str, is_raining: bool, fishing_level: int = 0) ->
             continue
         if condition == "sun" and is_raining:
             continue
+        # ── Accessibility filters ────────────────────────────────────────────
+        loc_lower = location.lower()
+        accessible = True
+        if "sewer" in loc_lower or "witch's swamp" in loc_lower:
+            if not has_rusty_key:
+                accessible = False
+        if "ginger island" in loc_lower or "pirate cove" in loc_lower:
+            if not has_island_access:
+                accessible = False
+        if "arrowhead island" in loc_lower:
+            if not has_island_access:
+                accessible = False
+        if "qi quest" in loc_lower or "mutant bug lair" in loc_lower:
+            if not has_island_access:
+                accessible = False
+        # Mine-level gated fish: parse "Mines (lv X)" from location
+        lv_match = re.search(r"mines\s*\(lv\s*(\d+)", loc_lower)
+        if lv_match:
+            required_level = int(lv_match.group(1))
+            if mine_level < required_level:
+                accessible = False
+        if not accessible:
+            filtered_count += 1
+            continue
         note = f"(fishing {min_level}+)" if min_level > 0 else ""
         results.append((name, location, note))
-    return sorted(results, key=lambda x: x[0])
+    sorted_results = sorted(results, key=lambda x: x[0])
+    # Return filtered count as metadata via a module-level variable
+    get_catchable_fish._filtered_count = filtered_count
+    return sorted_results
 
 
 # XSI namespace constant — used for nil-bool XML pattern
@@ -1509,7 +1595,12 @@ class MorningBrief:
                 },
                 "catchable_fish_today": [
                     {"name": name, "location": loc, "note": note}
-                    for name, loc, note in get_catchable_fish(s.season, s.is_raining, s.fishing_level)
+                    for name, loc, note in get_catchable_fish(
+                        s.season, s.is_raining, s.fishing_level,
+                        has_rusty_key=s.has_rusty_key,
+                        mine_level=s.deepest_mine_level,
+                        has_island_access=s.golden_walnuts_found > 0,
+                    )
                 ],
             },
 
@@ -1754,7 +1845,6 @@ def build_llm_prompt(brief: MorningBrief, diff: Optional[GameStateDiff] = None) 
     """
     s             = brief.state
     d             = brief.as_dict()
-    brief_json    = json.dumps(d, indent=2)
     recap_section = diff.as_text() if diff else "(First session — no previous data.)"
     luck_label, _ = brief._luck_info()
 
@@ -1809,18 +1899,30 @@ def build_llm_prompt(brief: MorningBrief, diff: Optional[GameStateDiff] = None) 
     )
 
     # ── Fish availability today ────────────────────────────────────────────────
-    catchable = get_catchable_fish(s.season, s.is_raining, s.fishing_level)
+    catchable = get_catchable_fish(
+        s.season, s.is_raining, s.fishing_level,
+        has_rusty_key=s.has_rusty_key,
+        mine_level=s.deepest_mine_level,
+        has_island_access=s.golden_walnuts_found > 0,
+    )
+    filtered_count = getattr(get_catchable_fish, '_filtered_count', 0)
     if catchable:
         weather_label = "rainy" if s.is_raining else "sunny"
+        # Group fish by location for compact output
+        from collections import OrderedDict
+        loc_groups: dict[str, list[str]] = OrderedDict()
+        for name, loc, note in catchable:
+            label = f"{name} ({note})" if note else name
+            loc_groups.setdefault(loc, []).append(label)
         fish_lines = "\n".join(
-            f"  - {name} — {loc}{(' ' + note) if note else ''}"
-            for name, loc, note in catchable[:15]
+            f"  - {loc}: {', '.join(names)}"
+            for loc, names in loc_groups.items()
         )
         fish_section = (
             f"Fish catchable today ({s.season}, {weather_label}):\n{fish_lines}"
         )
-        if len(catchable) > 15:
-            fish_section += f"\n  … and {len(catchable) - 15} more"
+        if filtered_count > 0:
+            fish_section += f"\n  ({filtered_count} more fish in locked areas)"
     else:
         fish_section = f"No fish catchable in {s.season} with current weather."
 
@@ -1843,22 +1945,58 @@ def build_llm_prompt(brief: MorningBrief, diff: Optional[GameStateDiff] = None) 
         if not incomplete:
             cc_section = f"{cc_header}\n  All bundles complete — congratulations!"
         else:
-            close = sorted(incomplete, key=lambda b: b.items_donated / max(b.required, 1), reverse=True)[:5]
-            bundle_lines = []
-            for b in close:
+            # Split into actionable (has items obtainable this season) vs deferred
+            actionable = []
+            deferred_count = 0
+            for b in incomplete:
                 missing = b.missing_items()
-                missing_str = ", ".join(
-                    f"{it.item_name} x{it.quantity}" for it in missing[:4]
+                has_seasonal = any(
+                    _is_item_in_season(it.item_name, s.season) for it in missing
                 )
-                if len(missing) > 4:
-                    missing_str += f" (+{len(missing) - 4} more)"
-                bundle_lines.append(
-                    f"  - {b.name} ({b.room}): {b.items_donated}/{b.required} donated"
-                    + (f" — still need: {missing_str}" if missing_str else "")
+                if has_seasonal:
+                    actionable.append(b)
+                else:
+                    deferred_count += 1
+            # Sort actionable by closest to completion
+            actionable.sort(
+                key=lambda b: b.items_donated / max(b.required, 1), reverse=True
+            )
+            bundle_lines = []
+            for b in actionable:
+                # Vault bundles: just show the gold amount
+                if b.room == "Vault":
+                    bundle_lines.append(
+                        f"  - {b.name} (Vault): {b.items_donated}/{b.required}"
+                    )
+                    continue
+                missing = b.missing_items()
+                # Compact item names: drop "x1", keep "x5" for qty > 1
+                item_strs = []
+                for it in missing:
+                    if it.quantity > 1:
+                        item_strs.append(f"{it.item_name} x{it.quantity}")
+                    else:
+                        item_strs.append(it.item_name)
+                # For bundles with more options than required, show "any of:"
+                if b.required < b.items_total:
+                    preview = ", ".join(item_strs[:3])
+                    if len(item_strs) > 3:
+                        preview += f" (+{len(item_strs) - 3} more)"
+                    bundle_lines.append(
+                        f"  - {b.name} ({b.room}): {b.items_donated}/{b.required}"
+                        f" — any of: {preview}"
+                    )
+                else:
+                    items_preview = ", ".join(item_strs)
+                    bundle_lines.append(
+                        f"  - {b.name} ({b.room}): {b.items_donated}/{b.required}"
+                        f" — {items_preview}"
+                    )
+            cc_section = f"{cc_header}\n" + "\n".join(bundle_lines)
+            if deferred_count:
+                cc_section += (
+                    f"\n  ({deferred_count} more bundles need items from other seasons)"
                 )
-            cc_section = f"{cc_header}\n  Closest to completion:\n" + "\n".join(bundle_lines)
-            if len(incomplete) > 5:
-                cc_section += f"\n  … and {len(incomplete) - 5} more incomplete bundles"
     else:
         cc_section = "Community Center: bundle data unavailable (save not yet loaded)."
 
@@ -1908,11 +2046,6 @@ def build_llm_prompt(brief: MorningBrief, diff: Optional[GameStateDiff] = None) 
 
 ## Yesterday's Recap
 {recap_section}
-
-## Today's Morning Brief (full structured data)
-```json
-{brief_json}
-```
 
 ## Skill Progress
 {skill_levelup_section}
