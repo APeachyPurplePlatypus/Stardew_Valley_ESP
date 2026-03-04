@@ -39,3 +39,11 @@ Thumbs.db
 
 # Git
 .gitconfig
+
+# LibreOffice lock files
+*~
+.~lock.*#
+
+# Generated agent outputs (re-created on each run)
+output/morning_brief.json
+output/coach_prompt.txt
