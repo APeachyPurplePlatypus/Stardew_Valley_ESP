@@ -8,8 +8,8 @@ The agent tracks your progress day-to-day, alerts you to tasks nearing completio
 
 ## Features
 
-- **Morning Brief** — every time you sleep in-game, the agent wakes up with you: current luck, weather forecast, wallet, active quests, and top relationships shown in a clean terminal summary
-- **Daily Diff** — compares yesterday's save against today's to report exactly what you accomplished: stone mined, fish caught, quests completed, friendships gained, level-ups, new bundle donations, new recipes, new minerals/artifacts, new achievements
+- **Morning Brief** — every time you sleep in-game, the agent wakes up with you: current luck, weather forecast, wallet, active quests, and top relationships shown in a clean terminal summary. JSON output is grouped into logical sections (`daily`, `progress`, `collections`, `profile`, `community_center`) for easy consumption by LLMs and downstream tools
+- **Daily Diff** — compares yesterday's save against today's to report exactly what you accomplished: money changes, 15 tracked stats (including steps taken), skill level-ups, quests completed, friendships gained, fish caught, mine depth progress, house upgrades, unlock flags, bundle donations, new recipes, new minerals/artifacts, new achievements. Each change is a structured `DiffEntry` with category, importance level (1-3), and optional numeric delta — displayed sorted by importance (level-ups and unlocks first, minor stats last)
 - **Fish Availability** — lists every fish catchable right now based on your current season, weather, and fishing level — including location hints and skill requirements
 - **Community Center Tracker** — parses bundle definitions directly from your save file (works with remixed bundles too), tracks donation progress per slot, and surfaces the bundles closest to completion with their missing items
 - **Collection Tracking** — tracks minerals found, artifacts discovered, achievements unlocked, and cooking/crafting recipes learned; all diffed day-to-day
@@ -237,7 +237,7 @@ All generated files land in `output/` and are gitignored (recreated on each run)
 
 | File | Description |
 |---|---|
-| `output/morning_brief.json` | Full structured game state as JSON |
+| `output/morning_brief.json` | Structured game state as JSON (grouped: `daily`, `progress`, `collections`, `profile`, `community_center`) |
 | `output/coach_prompt.txt` | LLM-ready coaching prompt |
 | `output/Stardew_Save_Attributes.xlsx` | Full XML attribute dump (from `parse_save.py`) |
 

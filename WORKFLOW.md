@@ -173,13 +173,18 @@ SaveParser(current).parse()   →  GameState (today)
 SaveParser(use_old).parse()   →  GameState (yesterday)
       │
       ▼
-GameStateDiff.compute()
-  • money delta
-  • 14 tracked stats (stone, fish, monsters, crops, gifts…)
-  • skill level-ups
-  • quest completions / new quests
+GameStateDiff.compute()  →  dict[str, DiffEntry]
+  Each entry has: category, importance (1-3), message, delta, new_value, details
+  • money delta (gained/spent/earned)
+  • 15 tracked stats (stone, fish, monsters, crops, gifts, steps…)
+  • skill level-ups                    [importance: 3]
+  • quest completions / new quests     [importance: 3/2]
   • friendship point gains / new NPCs met
-  • new fish species caught
+  • talked-today tracking
+  • new fish species + catch count increases
+  • mine depth progress
+  • house upgrades                     [importance: 3]
+  • unlock flags (skull key, rusty key, special charm, dwarf language)
   • bundle donation progress + bundle completions
   • new minerals / artifacts found
   • new achievements unlocked
@@ -187,7 +192,7 @@ GameStateDiff.compute()
       │
       ▼
 _run_analysis()  →  MorningBrief + GameStateDiff
-MorningBrief.as_dict()   →  output/morning_brief.json
+MorningBrief.as_dict()   →  output/morning_brief.json  (grouped: daily/progress/collections/profile/community_center)
 MorningBrief.as_text()   →  terminal box display
 build_llm_prompt()       →  output/coach_prompt.txt   ← send to any LLM
 ```
@@ -534,20 +539,38 @@ Configure via environment variables in `claude_desktop_config.json`:
 - `_parse_world()` — full `ET.parse()` of main save for world fields + bundle data
 - `_parse_bundles(state, world_root)` — parses `bundleData` definitions + CC donation progress; gold bundles (item_id=-1) use qty as amount; required count clamped to item count
 
+### DiffEntry (dataclass)
+Structured representation of a single change between two GameState snapshots:
+- `category: str` — "finances", "stats", "skills", "quests", "social", "collection", "bundles", "achievements", "recipes", "progression"
+- `importance: int` — 1 (low: minor stats), 2 (medium: progress), 3 (high: level-ups, unlocks, quest completions)
+- `message: str` — human-readable description
+- `delta: Optional[int | float]` — numeric change amount
+- `new_value: Optional[int | float | str]` — current value after the change
+- `details: Optional[dict]` — extra structured data (e.g. NPC name, quest title, species list)
+
 ### GameStateDiff
-- `compute() → dict[str, str]` — returns keyed activity strings, empty dict if no changes
-- `as_text() → str` — human-readable bullet list
-- Tracks: money delta, 14 stats, skill level-ups, quest changes, friendship gains, new fish/mineral/artifact types, new achievements, new recipes, bundle donations
+- `compute() → dict[str, DiffEntry]` — returns keyed DiffEntry objects, empty dict if no changes
+- `as_text() → str` — human-readable bullet list sorted by importance (high → low)
+- `as_dict() → dict[str, str]` — backward-compatible flat dict of key → message strings
+- `compute_by_category() → dict[str, list[DiffEntry]]` — entries grouped by category
+- Tracks: money delta, 15 stats (including steps_taken), skill level-ups, quest changes, friendship gains, talked-today, new fish species + catch count increases, mine depth progress, house upgrades, unlock flags (skull key, rusty key, special charm, dwarf language), new mineral/artifact types, new achievements, new recipes, bundle donations
 
 ### MorningBrief
-- `as_dict() → dict` — machine-readable JSON-safe structure
+- `as_dict() → dict` — machine-readable JSON-safe structure grouped under five top-level keys:
+  - `daily` — date, luck, weather, vitals, catchable fish today (changes every day)
+  - `progress` — finances, skills, skills_detail, active quests, top friendships (incl. talked_today), cumulative stats (15 fields), inventory summary (changes most days)
+  - `collections` — fish collection, minerals/artifacts, achievements, recipes (grows over time)
+  - `profile` — identity, progression, professions (rarely changes)
+  - `community_center` — rooms complete, bundles with donation progress and missing items
 - `as_text() → str` — box-drawn terminal display
 - Luck bands: Very Bad / Bad / Neutral / Good / Very Good based on `dailyLuck` float
 - Weather descriptions cover: Sun, Rain, Storm, Snow, Wind, Festival, Wedding, GreenRain
 - Live mode: shows `time_of_day` and `current_location` in the header box
 
 ### build_llm_prompt(brief, diff)
-Returns a markdown prompt with yesterday's recap + today's JSON brief. Sections: Good Morning / Top Priorities / Social Round / Evening Checklist / Coach's Tip.
+Returns a markdown prompt with yesterday's recap + today's grouped JSON brief. Sections: Good Morning / Top Priorities / Social Round / Evening Checklist / Coach's Tip.
+
+Accesses brief data via grouped key paths (e.g. `d['progress']['inventory_summary']`, `d['daily']['weather_tomorrow']`).
 
 Includes dedicated **Fishing** section (today's catchable fish by season + weather) and **Community Center Progress** section (incomplete bundles closest to completion with missing items listed).
 
@@ -625,8 +648,8 @@ print('time:', data['time']['timeString'])
 ### Adding a New Tracked Field
 1. Add the field to `GameState` with a zero default
 2. Add the XML key → attribute mapping to `SaveParser.STAT_MAP` (for stat fields) or parse it directly in `_parse_farmer`
-3. Add a diff entry in `GameStateDiff.compute()` if it should appear in the daily recap
-4. Add it to `MorningBrief.as_dict()` if it should appear in the morning brief
+3. Add a `DiffEntry` in `GameStateDiff.compute()` if it should appear in the daily recap — choose an appropriate category and importance level (1=low, 2=medium, 3=high)
+4. Add it to `MorningBrief.as_dict()` under the appropriate group (`daily`, `progress`, `collections`, or `profile`)
 5. Update `from_live_json()` if the field is available from the WebSocket
 6. Test against both Tolkien and Pelican saves
 
@@ -659,6 +682,13 @@ print('time:', data['time']['timeString'])
 - [x] **Claude Desktop MCP server** — `stardew_mcp_server.py` with 7 tools via stdio MCP
 - [x] **from_live_json() field mapping** — corrected against actual Hunter-Thompson/stardew-mcp payload shape
 - [x] **stardew-mcp build fix** — CommandExecutor.cs patched for Stardew 1.6 Netcode type changes
+
+### Data Structure Improvements (Completed)
+- [x] **Grouped Morning Brief JSON** — `as_dict()` output grouped under `daily`, `progress`, `collections`, `profile`, `community_center` wrapper keys
+- [x] **Structured DiffEntry** — `compute()` returns `dict[str, DiffEntry]` with category, importance, message, delta, new_value, details
+- [x] **Importance-sorted diff** — `as_text()` sorts entries by importance (level-ups/unlocks first, minor stats last)
+- [x] **New diff tracking** — talked_today, fish catch count increases, mine depth progress, house upgrades, unlock flags, steps_taken
+- [x] **Bug fixes** — removed duplicate `recipes` key, completed `cumulative_stats` (7 missing fields), surfaced `talked_today` in friendships
 
 ---
 
