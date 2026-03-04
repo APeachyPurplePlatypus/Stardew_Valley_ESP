@@ -62,6 +62,35 @@ log = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# OLLAMA LOCAL LLM
+# ─────────────────────────────────────────────────────────────────────────────
+
+def call_ollama(prompt: str, model: str, base_url: str) -> str:
+    """Send prompt to a local Ollama instance and return the full response text."""
+    import urllib.request
+    import urllib.error
+
+    payload = json.dumps({
+        "model":  model,
+        "prompt": prompt,
+        "stream": False,
+    }).encode()
+
+    req = urllib.request.Request(
+        f"{base_url.rstrip('/')}/api/generate",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=120) as resp:
+            data = json.loads(resp.read().decode())
+            return data.get("response", "").strip()
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"Ollama not reachable at {base_url}: {e}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # DATA STRUCTURES
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -674,13 +703,23 @@ class GameStateAgent:
     diffs them, and emits the Morning Brief.
     """
 
-    def __init__(self, saves_dir: Path, output_dir: Optional[Path] = None):
-        self.saves_dir   = saves_dir
-        self.save_folder = self._find_save_folder()
+    def __init__(
+        self,
+        saves_dir: Path,
+        output_dir: Optional[Path] = None,
+        ollama: bool = False,
+        ollama_model: str = "ministral:8b",
+        ollama_url: str = "http://localhost:11434",
+    ):
+        self.saves_dir    = saves_dir
+        self.save_folder  = self._find_save_folder()
         # Output dir: caller can override; defaults to ../output relative to saves_dir
-        self.output_dir  = output_dir or (saves_dir.parent / "output")
+        self.output_dir   = output_dir or (saves_dir.parent / "output")
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self._observer: Optional[Observer] = None
+        self.ollama       = ollama
+        self.ollama_model = ollama_model
+        self.ollama_url   = ollama_url
         log.info(f"Save folder: {self.save_folder}")
         log.info(f"Output dir:  {self.output_dir}")
 
@@ -743,8 +782,22 @@ class GameStateAgent:
 
             print("--- LLM Coach Prompt preview (first 400 chars) ---")
             print(prompt[:400])
-            print("  [… full prompt saved to coach_prompt.txt]")
+            print("  [... full prompt saved to coach_prompt.txt]")
             print("=" * 50)
+
+            # Ollama — optional local LLM response
+            if self.ollama:
+                print(f"\n[Ollama] Querying {self.ollama_model} ...")
+                try:
+                    response = call_ollama(prompt, self.ollama_model, self.ollama_url)
+                    print("\n" + "=" * 60)
+                    print(response)
+                    print("=" * 60 + "\n")
+                    response_path = self.output_dir / "coach_response.txt"
+                    response_path.write_text(response, encoding="utf-8")
+                    log.info(f"Coach response saved -> {response_path}")
+                except RuntimeError as e:
+                    print(f"[Ollama ERROR] {e}")
 
         except Exception:
             log.exception("Error during analysis — check the save files.")
@@ -810,6 +863,21 @@ def main() -> None:
         action="store_true",
         help="Print the Morning Brief as JSON to stdout instead of formatted text.",
     )
+    parser.add_argument(
+        "--ollama",
+        action="store_true",
+        help="Send the coaching prompt to a local Ollama model and print the response.",
+    )
+    parser.add_argument(
+        "--ollama-model",
+        default="ministral:8b",
+        help="Ollama model tag to use (default: ministral:8b).",
+    )
+    parser.add_argument(
+        "--ollama-url",
+        default="http://localhost:11434",
+        help="Ollama base URL (default: http://localhost:11434).",
+    )
     args = parser.parse_args()
 
     saves_dir = args.saves_dir.expanduser().resolve()
@@ -818,7 +886,12 @@ def main() -> None:
         print("       Use --saves-dir to point at your Saves folder.")
         sys.exit(1)
 
-    agent = GameStateAgent(saves_dir)
+    agent = GameStateAgent(
+        saves_dir,
+        ollama=args.ollama,
+        ollama_model=args.ollama_model,
+        ollama_url=args.ollama_url,
+    )
 
     if args.json:
         # JSON-only output mode
