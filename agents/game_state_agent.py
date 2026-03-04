@@ -494,59 +494,92 @@ def _fmt_time(t: int) -> str:
 
 
 def from_live_json(data: dict) -> "GameState":
-    """Map a stardew-mcp WebSocket state broadcast to a GameState."""
+    """Map a stardew-mcp WebSocket state broadcast to a GameState.
+
+    Actual payload shape (Hunter-Thompson/stardew-mcp mod):
+      data.player  — name, x, y, location, energy, maxEnergy, health, maxHealth,
+                     money, inventory[{slot,name,displayName,stack,category,...}]
+      data.time    — timeOfDay, timeString, day, season (lowercase), year, dayOfWeek
+      data.world   — weather (lowercase: "sunny"/"rainy"/"stormy"), isOutdoors, isFarm
+      data.skills  — farming, mining, foraging, fishing, combat (+ *Xp variants)
+      data.quests  — [{id, name, description, objective, isComplete, daysLeft, reward}]
+      data.relationships — [{npcName, friendshipPoints, hearts, talkedToToday, status}]
+      data.surroundings  — asciiMap, nearbyNPCs, nearbyMonsters, nearbyObjects, ...
+    """
     s = GameState()
-    p = data.get("player", {})
-    w = data.get("world", {})
+    p   = data.get("player", {})
+    t   = data.get("time", {})
+    w   = data.get("world", {})
     sur = data.get("surroundings", {})
 
-    # Finances / vitals
-    s.money    = int(p.get("money", 0))
-    s.stamina  = float(p.get("stamina", 270))
-    s.health   = int(p.get("health", 100))
+    # Finances / vitals  (energy = stamina in game terms)
+    s.money       = int(p.get("money", 0))
+    s.stamina     = float(p.get("energy", 270))
+    s.max_stamina = int(p.get("maxEnergy", 270))
+    s.health      = int(p.get("health", 100))
+    s.max_health  = int(p.get("maxHealth", 100))
 
-    # Skills
-    skills = p.get("skills", {})
+    # Skills — top-level "skills" object, not nested in player
+    skills = data.get("skills", {})
     s.farming_level  = int(skills.get("farming", 0))
     s.fishing_level  = int(skills.get("fishing", 0))
     s.foraging_level = int(skills.get("foraging", 0))
     s.mining_level   = int(skills.get("mining", 0))
     s.combat_level   = int(skills.get("combat", 0))
-    s.luck_level     = int(skills.get("luck", 0))
 
-    # Friendships
-    for npc, pts in p.get("friendships", {}).items():
-        s.friendship.append(FriendshipState(npc=npc, points=int(pts)))
+    # Relationships — top-level list of {npcName, friendshipPoints, status, talkedToToday, ...}
+    for rel in data.get("relationships", []):
+        npc = str(rel.get("npcName", ""))
+        pts = int(rel.get("friendshipPoints", 0))
+        if npc:
+            s.friendship.append(FriendshipState(
+                npc=npc,
+                points=pts,
+                status=str(rel.get("status", "Friendly")),
+                talked_today=bool(rel.get("talkedToToday", False)),
+            ))
 
-    # Quests
-    for q in p.get("questLog", []):
+    # Quests — top-level list of {name, isComplete, reward, ...}
+    for q in data.get("quests", []):
         s.quests.append(QuestState(
-            title=str(q.get("title", "")),
-            completed=bool(q.get("completed", False)),
+            title=str(q.get("name", "")),
+            completed=bool(q.get("isComplete", False)),
             money_reward=int(q.get("reward", 0)),
         ))
 
-    # Inventory
+    # Inventory — items have {slot, name, displayName, stack, category (string), ...}
+    # Map string categories to the int IDs the save-file format uses
+    _cat_map = {
+        "Tool": -99, "Weapon": -98, "Fish": -4, "Seed": -74,
+        "Resource": -16, "Mineral": -12, "Vegetable": -75, "Fruit": -79,
+        "Cooking": -7, "Crafting": -8, "Junk": -20,
+    }
     s.inventory_items = [
-        {"id": str(item.get("id", "")), "count": int(item.get("count", 1)),
-         "quality": int(item.get("quality", 0))}
+        {
+            "name":          str(item.get("displayName") or item.get("name", "")),
+            "stack":         int(item.get("stack", 1)),
+            "quality":       0,
+            "category":      _cat_map.get(str(item.get("category", "")), 0),
+            "upgrade_level": 0,
+        }
         for item in p.get("inventory", [])
     ]
 
-    # World
-    s.season           = str(w.get("season", "Spring"))
-    s.day              = int(w.get("dayOfMonth", 1))
-    s.year             = int(w.get("year", 1))
-    s.weather_tomorrow = str(w.get("weather", "Sun"))
-    s.is_raining       = str(w.get("weather", "")).lower() in ("rain", "storm")
+    # World/time — season in "time" object, lowercase ("spring" not "Spring")
+    raw_season         = str(t.get("season", "spring"))
+    s.season           = raw_season.capitalize()
+    s.day              = int(t.get("day", 1))
+    s.year             = int(t.get("year", 1))
+    raw_weather        = str(w.get("weather", "sunny")).lower()
+    s.weather_tomorrow = raw_weather.capitalize()
+    s.is_raining       = raw_weather in ("rainy", "stormy", "rain", "storm")
 
-    # Live-only
-    s.time_of_day      = int(w.get("timeOfDay", 0))
-    s.current_location = str(w.get("location", ""))
-    pos = p.get("position", {})
-    s.position_x = int(pos.get("x", 0))
-    s.position_y = int(pos.get("y", 0))
-    s.ascii_map   = str(sur.get("asciiMap", ""))
+    # Live-only fields
+    s.time_of_day      = int(t.get("timeOfDay", 0))
+    s.current_location = str(p.get("location", ""))
+    s.position_x       = int(p.get("x", 0))
+    s.position_y       = int(p.get("y", 0))
+    s.ascii_map        = str(sur.get("asciiMap", ""))
 
     return s
 

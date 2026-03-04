@@ -104,12 +104,11 @@ mcp = FastMCP(
         "- Use get_fish_collection when the player asks about their fish collection.\n"
         "- For complex planning tasks (multi-day strategy, season planning, full "
         "100% roadmap), call generate_coaching_prompt to get rich context, then "
-        "call run_coaching_agent to spawn a dedicated analysis subagent that will "
-        "produce a detailed, structured plan. This keeps complex reasoning in its "
-        "own focused context window.\n\n"
+        "reason through the plan yourself using that context. Do not call "
+        "run_coaching_agent unless the user explicitly asks to use the API subagent.\n\n"
         "When a user request is simple (single question, quick tip), answer "
         "directly from tool output. When it requires multi-step reasoning or "
-        "planning spanning multiple days or systems, use run_coaching_agent."
+        "planning, call generate_coaching_prompt and produce the analysis yourself."
     ),
 )
 
@@ -189,16 +188,16 @@ def get_surroundings() -> str:
             if msg.get("type") in ("state", "response") and "data" in msg:
                 data = msg["data"]
                 sur  = data.get("surroundings", {})
-                w    = data.get("world", {})
                 p    = data.get("player", {})
-                pos  = p.get("position", {})
+                t    = data.get("time", {})
                 result = {
-                    "location":     w.get("location", ""),
-                    "position":     pos,
+                    "location":     p.get("location", ""),
+                    "position":     {"x": p.get("x", 0), "y": p.get("y", 0)},
+                    "time":         t.get("timeString", ""),
                     "ascii_map":    sur.get("asciiMap", ""),
-                    "nearby_npcs":  sur.get("nearbyNpcs", []),
-                    "monsters":     sur.get("monsters", []),
-                    "objects":      sur.get("objects", []),
+                    "nearby_npcs":  sur.get("nearbyNPCs", []),
+                    "monsters":     sur.get("nearbyMonsters", []),
+                    "objects":      sur.get("nearbyObjects", []),
                 }
                 return _json.dumps(result, indent=2, ensure_ascii=False)
 

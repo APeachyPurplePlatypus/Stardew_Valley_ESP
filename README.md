@@ -9,13 +9,14 @@ The agent tracks your progress day-to-day, alerts you to tasks nearing completio
 ## Features
 
 - **Morning Brief** — every time you sleep in-game, the agent wakes up with you: current luck, weather forecast, wallet, active quests, and top relationships shown in a clean terminal summary
-- **Daily Diff** — compares yesterday's save against today's to report exactly what you accomplished: stone mined, fish caught, quests completed, friendships gained, level-ups, new bundle donations
+- **Daily Diff** — compares yesterday's save against today's to report exactly what you accomplished: stone mined, fish caught, quests completed, friendships gained, level-ups, new bundle donations, new recipes, new minerals/artifacts, new achievements
 - **Fish Availability** — lists every fish catchable right now based on your current season, weather, and fishing level — including location hints and skill requirements
 - **Community Center Tracker** — parses bundle definitions directly from your save file (works with remixed bundles too), tracks donation progress per slot, and surfaces the bundles closest to completion with their missing items
-- **LLM Coaching Prompt** — generates a structured prompt ready to send to any LLM (Claude, GPT-4, etc.) for a step-by-step personalised walkthrough; fishing conditions and bundle status are included in context
+- **Collection Tracking** — tracks minerals found, artifacts discovered, achievements unlocked, and cooking/crafting recipes learned; all diffed day-to-day
+- **LLM Coaching Prompt** — generates a structured prompt ready for Claude Desktop or any LLM for a step-by-step personalised walkthrough; fishing conditions and bundle status are included in context
 - **Watch Mode** — uses `watchdog` to automatically fire analysis the moment you sleep in-game, no manual steps required
 - **Live WebSocket Mode** — connects to the stardew-mcp SMAPI mod for real-time game state (1-second updates): live time of day, position, surroundings map, inventory, and more
-- **Claude Desktop MCP** — exposes game state as MCP tools so Claude Desktop can query your live game directly and act as an interactive coach
+- **Claude Desktop MCP** — exposes game state as MCP tools so Claude Desktop can query your live game directly and act as an interactive coach; no API key required for complex planning
 - **JSON Output** — all data is also written as structured JSON for use by other tools or scripts
 
 ---
@@ -120,32 +121,36 @@ python scripts/parse_save.py
 
 The `stardew_mcp_server.py` exposes your live game state as **MCP tools** that Claude Desktop can call directly during a conversation — so Claude acts as a fully interactive coach with real-time awareness of what you're doing.
 
+No API key is required. Claude Desktop is already Claude — for complex planning tasks it calls `generate_coaching_prompt` to load full game context and then reasons through the plan itself.
+
 ### Tools exposed
 
-| Tool | Description |
-|---|---|
-| `get_live_state` | Current time, location, health, stamina, money, skills, quests, friendships |
-| `get_surroundings` | 61×61 ASCII tile map + nearby NPCs, monsters, and objects |
-| `get_catchable_fish` | Fish available right now (season/weather/skill aware) |
-| `get_bundle_status` | Community Center bundle progress (from save file) |
-| `get_fish_collection` | All fish species caught so far (from save file) |
-| `generate_coaching_prompt` | Full structured coaching prompt combining live + save data |
+| Tool | Data source | Description |
+|---|---|---|
+| `get_live_state` | WebSocket | Current time, location, health, stamina, money, skills, quests, friendships |
+| `get_surroundings` | WebSocket | 61×61 ASCII tile map + nearby NPCs, monsters, and objects |
+| `get_catchable_fish` | WebSocket | Fish available right now (season/weather/skill aware) |
+| `get_bundle_status` | Save file | Community Center bundle progress (reflects last sleep) |
+| `get_fish_collection` | Save file | All fish species caught so far |
+| `generate_coaching_prompt` | WebSocket + save file | Full structured coaching prompt for complex planning |
+| `run_coaching_agent` | WebSocket + save file | Spawns a Claude API subagent (requires `ANTHROPIC_API_KEY`) |
 
 ### MCP Setup
 
-1. **Complete [Live Setup](#live-setup)** (SMAPI + stardew-mcp mod).
+1. **Complete [Live Setup](#live-setup)** (SMAPI + stardew-mcp mod) — required for live tools. Save-file tools work without the game running.
 
 2. **Install Python MCP SDK:**
    ```bash
    pip install mcp websockets
    ```
 
-3. **Configure Claude Desktop** — edit `%APPDATA%\Claude\claude_desktop_config.json`:
+3. **Configure Claude Desktop** — edit `%APPDATA%\Claude\claude_desktop_config.json`.
+   Use the **full path** to your Python executable (run `where python` to find it):
    ```json
    {
      "mcpServers": {
        "stardew-esp": {
-         "command": "python",
+         "command": "C:/Users/<you>/AppData/Local/Microsoft/WindowsApps/python.exe",
          "args": ["C:/path/to/Stardew_Valley_ESP/agents/stardew_mcp_server.py"],
          "env": {
            "STARDEW_SAVES_DIR": "C:/Users/<you>/AppData/Roaming/StardewValley/Saves"
@@ -154,29 +159,54 @@ The `stardew_mcp_server.py` exposes your live game state as **MCP tools** that C
      }
    }
    ```
+   > Optional: add `"ANTHROPIC_API_KEY": "sk-ant-..."` to the `env` block to enable `run_coaching_agent`.
 
-4. **Restart Claude Desktop.** The stardew-esp tools will appear in the tool picker.
+4. **Restart Claude Desktop** fully (quit from system tray, relaunch). The stardew-esp tools will appear in the tool picker (hammer icon).
 
-5. **Start a conversation:** "What should I do today? Check my game state." Claude will call `get_live_state` and `get_bundle_status` automatically.
+5. **Start a conversation.** Example prompts:
+   - *"What should I do today?"* — Claude calls `get_live_state` and advises
+   - *"What's my Community Center progress?"* — calls `get_bundle_status`
+   - *"Plan the most efficient path to 100% this season"* — calls `generate_coaching_prompt` then reasons through a full plan
 
 ---
 
 ## Live Setup
 
-Both `--live` mode and the Claude Desktop MCP server require the **stardew-mcp SMAPI mod**.
+Both `--live` mode and the live Claude Desktop MCP tools require the **stardew-mcp SMAPI mod**.
 
 1. **Install SMAPI:** https://smapi.io
 
-2. **Build and install the mod:**
-   ```bash
-   git clone https://github.com/Hunter-Thompson/stardew-mcp
-   cd stardew-mcp
-   dotnet build StardewMod
-   # Copy the compiled StardewMod folder into %APPDATA%\StardewValley\Mods\
-   ```
-   > Requires .NET 6 SDK: https://dotnet.microsoft.com/download/dotnet/6.0
+2. **Install .NET 6 SDK** (required to build the mod):
+   https://dotnet.microsoft.com/download/dotnet/6.0
 
-3. **Launch Stardew Valley through SMAPI** (not directly). The mod broadcasts game state to `ws://localhost:8765/game` every 1 second.
+3. **Build and install the mod:**
+   ```powershell
+   git clone https://github.com/Hunter-Thompson/stardew-mcp
+   cd stardew-mcp\mod\StardewMCP
+   dotnet build
+   ```
+   > Note: the project is at `mod/StardewMCP/` — not `StardewMod/` as the upstream README states.
+   >
+   > The build patches one upstream compatibility error in `CommandExecutor.cs` (CS8917 — Stardew 1.6 changed the type of `craftingRecipes`/`cookingRecipes`). If the build fails with that error, see the fix in `WORKFLOW.md §7`.
+
+   Extract the output zip into your game's Mods folder:
+   ```powershell
+   # Default Steam install path:
+   Expand-Archive "bin\Debug\net6.0\StardewMCP 1.0.0.zip" `
+     -DestinationPath "C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\"
+   ```
+
+4. **Launch Stardew Valley through SMAPI** (run `StardewModdingAPI.exe`, not `Stardew Valley.exe`). You should see `[StardewMCP]` listed in the SMAPI console.
+
+5. **Verify the WebSocket is live** (after loading a save):
+   ```python
+   python -c "
+   import websockets.sync.client as ws
+   c = ws.connect('ws://localhost:8765/game')
+   print(c.recv()[:200])
+   "
+   ```
+   Should print a JSON state message.
 
 ---
 
@@ -232,6 +262,13 @@ See [WORKFLOW.md](WORKFLOW.md) for full architecture documentation including:
 - Component map and data flow diagram
 - Save file format findings (dual stat storage formats)
 - Field location reference (which data comes from which file)
-- Live WebSocket protocol details
+- Live WebSocket protocol details and actual payload field names
+- stardew-mcp mod build notes and compatibility fix
 - Pending enhancements backlog
 - Development workflow and branching strategy
+
+## Third Party Github Sources
+
+  - https://github.com/MateusAquino/stardewids/tree/main
+  - https://github.com/Hunter-Thompson/stardew-mcp/tree/main
+  
