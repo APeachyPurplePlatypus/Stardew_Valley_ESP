@@ -10,7 +10,7 @@ The agent tracks your progress day-to-day, alerts you to tasks nearing completio
 
 - **Morning Brief** — every time you sleep in-game, the agent wakes up with you: current luck, weather forecast, wallet, active quests, and top relationships shown in a clean terminal summary
 - **Daily Diff** — compares yesterday's save against today's to report exactly what you accomplished: stone mined, fish caught, quests completed, friendships gained, level-ups
-- **LLM Coaching Prompt** — generates a structured prompt ready to send to Claude or Gemini for a step-by-step personalised walkthrough for the new day
+- **LLM Coaching Prompt** — generates a structured prompt and optionally sends it to a local Ollama model for a step-by-step personalised walkthrough for the new day
 - **Watch Mode** — uses `watchdog` to automatically fire analysis the moment you sleep in-game, no manual steps required
 - **JSON Output** — all data is also written as structured JSON for use by other tools or scripts
 
@@ -75,6 +75,33 @@ python agents/game_state_agent.py --once
 python agents/game_state_agent.py --saves-dir saves --once
 ```
 
+### Ollama Integration (Local LLM)
+Pass `--ollama` to send the coaching prompt to a local [Ollama](https://ollama.com) model and save the response to `output/coach_response.md`.
+
+```bash
+# Default model: ministral:8b, default URL: http://localhost:11434
+python agents/game_state_agent.py --saves-dir saves --once --ollama
+
+# Choose a different model
+python agents/game_state_agent.py --saves-dir saves --once --ollama --ollama-model mistral-small3.1:24b
+
+# Point at a remote Ollama instance
+python agents/game_state_agent.py --saves-dir saves --once --ollama --ollama-url http://192.168.1.5:11434
+
+# Increase timeout for large/slow models (default: 300s)
+python agents/game_state_agent.py --saves-dir saves --once --ollama --ollama-timeout 600
+
+# Disable chain-of-thought reasoning for thinking models (qwen3, deepseek-r1)
+python agents/game_state_agent.py --saves-dir saves --once --ollama --ollama-model qwen3:8b --no-think
+```
+
+Ollama must be running and the model must be pulled before use:
+```bash
+ollama pull mistral-small3.1:24b
+```
+
+Without `--ollama` the agent still runs as before — `coach_prompt.txt` is written but no LLM is called.
+
 ### JSON Output Only
 Prints the Morning Brief as clean JSON — useful for piping to other tools.
 
@@ -94,7 +121,13 @@ python scripts/parse_save.py
 
 ## LLM Integration
 
-After each run, `output/coach_prompt.txt` contains a structured coaching prompt ready to send to any LLM. To wire it directly to Claude:
+### Local (Ollama) — recommended, no API key needed
+
+Use the `--ollama` flag (see [Usage](#usage) above). The response is printed to the terminal and saved to `output/coach_response.md`.
+
+### Cloud (Claude API)
+
+`output/coach_prompt.txt` is written on every run and can be sent to any cloud LLM:
 
 ```python
 import anthropic
@@ -121,6 +154,7 @@ All generated files land in `output/` and are gitignored (recreated on each run)
 |---|---|
 | `output/morning_brief.json` | Full structured game state as JSON |
 | `output/coach_prompt.txt` | LLM-ready coaching prompt |
+| `output/coach_response.md` | LLM response from Ollama (only when `--ollama` is used) |
 | `output/Stardew_Save_Attributes.xlsx` | Full XML attribute dump (from `parse_save.py`) |
 
 ---

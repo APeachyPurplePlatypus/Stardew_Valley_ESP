@@ -25,9 +25,20 @@ An automated agent that reads Stardew Valley save files, diffs the game state be
 | `python agents/game_state_agent.py --saves-dir saves` | Watch mode (triggers on each in-game sleep) |
 | `python agents/game_state_agent.py --saves-dir saves --json` | JSON output only (for piping) |
 | `python agents/game_state_agent.py` | Live mode (reads from `%APPDATA%\StardewValley\Saves`) |
+| `python agents/game_state_agent.py --saves-dir saves --once --ollama` | One-shot + Ollama coaching response |
 | `python scripts/parse_save.py` | Dump all XML attributes to `output/Stardew_Save_Attributes.xlsx` |
 
-**Dependencies:** `watchdog` (watch mode only), `openpyxl` (parse_save.py only)
+**Ollama flags:**
+
+| Flag | Default | Description |
+|---|---|---|
+| `--ollama` | off | Enable local LLM call via Ollama |
+| `--ollama-model` | `ministral:8b` | Ollama model tag to use |
+| `--ollama-url` | `http://localhost:11434` | Ollama server base URL |
+| `--ollama-timeout` | `300` | Seconds to wait for response |
+| `--no-think` | off | Suppress chain-of-thought for qwen3/deepseek-r1 models |
+
+**Dependencies:** `watchdog` (watch mode only), `openpyxl` (parse_save.py only), Ollama (`--ollama` only — no pip install)
 
 ---
 
@@ -49,6 +60,7 @@ Stardew_Valley_ESP/
 │   ├── .gitkeep
 │   ├── morning_brief.json      # Structured game state (re-created each run)
 │   ├── coach_prompt.txt        # LLM-ready coaching prompt (re-created each run)
+│   ├── coach_response.md       # Ollama response (only when --ollama, UTF-8 with emoji)
 │   └── Stardew_Save_Attributes.xlsx  # Full XML attribute dump (re-created by parse_save.py)
 │
 ├── input/                      # Reserved for future input data
@@ -94,10 +106,16 @@ Stardew_Valley_ESP/
          ┌────────▼─────────┐   ┌────────────────────────┐
          │  Text summary    │   │  build_llm_prompt()     │
          │  (terminal)      │   │  coach_prompt.txt       │
-         └──────────────────┘   │  → Claude / Gemini      │
+         └──────────────────┘   └────────────┬───────────┘
+                                             │ --ollama flag
+                                ┌────────────▼───────────┐
+                                │  call_ollama()          │
+                                │  → Ollama REST API      │
+                                │  coach_response.md      │
                                 └────────────────────────┘
          output/morning_brief.json
          output/coach_prompt.txt
+         output/coach_response.md  (only when --ollama)
 ```
 
 ### SaveParser — Two-File Strategy
@@ -146,6 +164,9 @@ GameStateDiff.compute()
 MorningBrief.as_dict()   →  output/morning_brief.json
 MorningBrief.as_text()   →  terminal box display
 build_llm_prompt()       →  output/coach_prompt.txt
+      │  (if --ollama)
+      ▼
+call_ollama()            →  output/coach_response.md + terminal print
 ```
 
 ---
@@ -293,7 +314,17 @@ Central data model. All fields default to zero/empty so partial saves still pars
 ### build_llm_prompt(brief, diff)
 Returns a markdown prompt with yesterday's recap + today's JSON brief. Structured output sections: Good Morning / Top Priorities / Social Round / Evening Checklist / Coach's Tip.
 
-**To call with Claude:**
+Prompt is ~1,400 tokens; recommended minimum model context window: **4,096 tokens**.
+
+### call_ollama(prompt, model, base_url, timeout, think)
+Sends the coaching prompt to a local Ollama instance via stdlib `urllib` (no pip install needed).
+
+- `stream=False` — waits for the full response before returning
+- `think=False` — prepends `/no_think` to the prompt and sets `{"think": false}` in the request body; suppresses chain-of-thought for `qwen3` and `deepseek-r1` models
+- Raises `RuntimeError` if Ollama is unreachable (surfaced as `[Ollama ERROR]` in terminal)
+- Response saved to `output/coach_response.md` (UTF-8) before printing, so emoji are always preserved even if the terminal can't render them
+
+**To call with Claude instead:**
 ```python
 import anthropic
 client = anthropic.Anthropic()
@@ -309,6 +340,7 @@ print(response.content[0].text)
 - Auto-discovers the most recently modified save folder in `saves_dir`
 - Writes all outputs to `output_dir` (defaults to `../output` relative to `saves_dir`)
 - Debounces watchdog events with a 3-second window + 1.5-second write delay
+- Ollama params: `ollama`, `ollama_model`, `ollama_url`, `ollama_timeout`, `ollama_think` — all exposed as CLI flags
 
 ---
 
@@ -362,7 +394,7 @@ print(MorningBrief(s).as_text())
 - [ ] **Fish collection** — diff `fishCaught/item` to report new species caught
 
 ### Medium Term
-- [ ] **LLM integration** — wire `coach_prompt.txt` directly to the Anthropic SDK; stream response to terminal
+- [x] **LLM integration** — Ollama local LLM via `--ollama` flag; `call_ollama()` uses stdlib urllib, no pip deps
 - [ ] **Multi-farm support** — when multiple save folders exist, prompt user to select one or monitor all
 - [ ] **Recipe tracking** — report newly learned cooking/crafting recipes
 - [ ] **Mineral/artifact tracking** — diff `mineralsFound` and `archaeologyFound`
@@ -375,5 +407,5 @@ print(MorningBrief(s).as_text())
 
 ---
 
-*Last updated: 2026-03-03*
+*Last updated: 2026-03-04*
 *Game version tested: 1.6.15 | Python: 3.13*
