@@ -68,6 +68,7 @@ if str(_here) not in sys.path:
 
 from game_state_agent import (  # noqa: E402
     GameState,
+    DiffEntry,
     MorningBrief,
     SaveParser,
     LiveAdapter,
