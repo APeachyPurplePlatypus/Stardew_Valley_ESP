@@ -367,6 +367,18 @@ class BundleState:
 
 
 @dataclass
+class DiffEntry:
+    """A single change detected between two GameState snapshots."""
+    category: str       # "finances", "stats", "skills", "quests", "social",
+                        # "collection", "bundles", "achievements", "recipes", "progression"
+    importance: int     # 1=low (minor stat), 2=medium (progress), 3=high (level-up/quest/unlock)
+    message: str        # Human-readable description
+    delta: Optional[int | float] = None
+    new_value: Optional[int | float | str] = None
+    details: Optional[dict] = None
+
+
+@dataclass
 class GameState:
     # ── Date / World ─────────────────────────────────────────────────────────
     day: int = 0
@@ -1118,21 +1130,38 @@ class GameStateDiff:
         self.yesterday = yesterday
         self.today     = today
 
-    def compute(self) -> dict[str, str]:
+    def compute(self) -> dict[str, DiffEntry]:
+        """Compare yesterday and today, returning structured diff entries.
+
+        Each value is a DiffEntry with category, importance, message,
+        and optional numeric delta / new_value / details.
+        """
         y, t = self.yesterday, self.today
-        results: dict[str, str] = {}
+        results: dict[str, DiffEntry] = {}
 
         # ── Finances ─────────────────────────────────────────────────────────
         money_delta  = t.money - y.money
         earned_delta = t.total_money_earned - y.total_money_earned
 
         if money_delta > 0:
-            results["money_gained"] = f"Your wallet grew by {money_delta:,}g (now {t.money:,}g)."
+            results["money_gained"] = DiffEntry(
+                category="finances", importance=2,
+                message=f"Your wallet grew by {money_delta:,}g (now {t.money:,}g).",
+                delta=money_delta, new_value=t.money,
+            )
         elif money_delta < 0:
-            results["money_spent"]  = f"You spent {abs(money_delta):,}g (wallet: {t.money:,}g)."
+            results["money_spent"] = DiffEntry(
+                category="finances", importance=2,
+                message=f"You spent {abs(money_delta):,}g (wallet: {t.money:,}g).",
+                delta=money_delta, new_value=t.money,
+            )
 
         if earned_delta > 0:
-            results["money_earned"] = f"Total earnings +{earned_delta:,}g from sales/rewards."
+            results["money_earned"] = DiffEntry(
+                category="finances", importance=2,
+                message=f"Total earnings +{earned_delta:,}g from sales/rewards.",
+                delta=earned_delta, new_value=t.total_money_earned,
+            )
 
         # ── Statistics ───────────────────────────────────────────────────────
         STAT_MESSAGES = [
@@ -1149,12 +1178,17 @@ class GameStateDiff:
             ("dirt_hoed",        "{n:,} soil tile(s) hoed."),
             ("geodes_cracked",   "{n:,} geode(s) cracked at Clint's."),
             ("items_cooked",     "{n:,} meal(s) cooked."),
+            ("steps_taken",      "{n:,} steps taken."),
         ]
 
         for attr, template in STAT_MESSAGES:
             delta = getattr(t, attr) - getattr(y, attr)
             if delta > 0:
-                results[attr] = template.format(n=delta)
+                results[attr] = DiffEntry(
+                    category="stats", importance=1,
+                    message=template.format(n=delta),
+                    delta=delta, new_value=getattr(t, attr),
+                )
 
         # ── Skills ───────────────────────────────────────────────────────────
         SKILL_ATTRS = [
@@ -1167,8 +1201,11 @@ class GameStateDiff:
         for attr, label in SKILL_ATTRS:
             delta = getattr(t, attr) - getattr(y, attr)
             if delta > 0:
-                results[f"skill_{attr}"] = (
-                    f"[LEVEL UP] {label} reached level {getattr(t, attr)}!"
+                results[f"skill_{attr}"] = DiffEntry(
+                    category="skills", importance=3,
+                    message=f"[LEVEL UP] {label} reached level {getattr(t, attr)}!",
+                    delta=delta, new_value=getattr(t, attr),
+                    details={"skill": label},
                 )
 
         # ── Quests ───────────────────────────────────────────────────────────
@@ -1178,11 +1215,20 @@ class GameStateDiff:
         for title, q in t_quests.items():
             if q.completed and (title not in y_quests or not y_quests[title].completed):
                 reward = f" (+{q.money_reward:,}g)" if q.money_reward > 0 else ""
-                results[f"quest_done_{title}"] = f"[QUEST COMPLETE] '{title}'{reward}."
+                results[f"quest_done_{title}"] = DiffEntry(
+                    category="quests", importance=3,
+                    message=f"[QUEST COMPLETE] '{title}'{reward}.",
+                    delta=q.money_reward if q.money_reward > 0 else None,
+                    details={"quest": title, "reward": q.money_reward},
+                )
 
         for title, q in t_quests.items():
             if title not in y_quests:
-                results[f"quest_new_{title}"] = f"[NEW QUEST] '{title}' added to your log."
+                results[f"quest_new_{title}"] = DiffEntry(
+                    category="quests", importance=2,
+                    message=f"[NEW QUEST] '{title}' added to your log.",
+                    details={"quest": title},
+                )
 
         # ── Friendships ──────────────────────────────────────────────────────
         y_friends = {f.npc: f for f in y.friendship}
@@ -1194,56 +1240,148 @@ class GameStateDiff:
                 delta = tf.points - yf.points
                 if delta > 0:
                     hearts = tf.points // 250
-                    results[f"friend_{npc}"] = (
-                        f"Friendship with {npc} +{delta} pts → {hearts} heart(s) ({tf.points} total)."
+                    results[f"friend_{npc}"] = DiffEntry(
+                        category="social", importance=2,
+                        message=f"Friendship with {npc} +{delta} pts → {hearts} heart(s) ({tf.points} total).",
+                        delta=delta, new_value=tf.points,
+                        details={"npc": npc, "hearts": hearts},
                     )
             else:
-                results[f"met_{npc}"] = f"You met {npc} for the first time!"
+                results[f"met_{npc}"] = DiffEntry(
+                    category="social", importance=2,
+                    message=f"You met {npc} for the first time!",
+                    details={"npc": npc},
+                )
+
+        # ── Talked today ────────────────────────────────────────────────────
+        talked_npcs = sorted(f.npc for f in t.friendship if f.talked_today)
+        if talked_npcs:
+            results["talked_today"] = DiffEntry(
+                category="social", importance=1,
+                message=f"Talked to: {', '.join(talked_npcs)}.",
+                details={"npcs": talked_npcs},
+            )
 
         # ── Dialogue Events (new ones, excluding memory markers) ─────────────
         new_events = set(t.dialogue_events) - set(y.dialogue_events)
         clean_events = [e for e in new_events if not e.endswith("_memory_oneday")]
         if clean_events:
-            results["dialogue"] = f"New story moments triggered: {', '.join(clean_events)}."
+            results["dialogue"] = DiffEntry(
+                category="social", importance=2,
+                message=f"New story moments triggered: {', '.join(clean_events)}.",
+                details={"events": sorted(clean_events)},
+            )
 
         # ── New fish species caught ───────────────────────────────────────────
         new_fish = set(t.fish_caught) - set(y.fish_caught)
         if new_fish:
-            results["new_fish"] = f"New fish species caught: {', '.join(sorted(new_fish))}."
+            results["new_fish"] = DiffEntry(
+                category="collection", importance=2,
+                message=f"New fish species caught: {', '.join(sorted(new_fish))}.",
+                delta=len(new_fish),
+                details={"species": sorted(new_fish)},
+            )
+
+        # ── Fish catch count increases (existing species) ────────────────────
+        fish_count_increases = {}
+        for name in set(t.fish_caught) & set(y.fish_caught):
+            d_count = t.fish_caught[name] - y.fish_caught[name]
+            if d_count > 0:
+                fish_count_increases[name] = d_count
+        if fish_count_increases:
+            total = sum(fish_count_increases.values())
+            species_str = ", ".join(
+                f"{name} (+{n})" for name, n in sorted(fish_count_increases.items())
+            )
+            results["fish_caught_more"] = DiffEntry(
+                category="collection", importance=1,
+                message=f"Caught {total} more fish: {species_str}.",
+                delta=total,
+                details={"catches": fish_count_increases},
+            )
 
         # ── New recipes learned ────────────────────────────────────────────────
         new_cooking  = set(t.recipes_cooking)  - set(y.recipes_cooking)
         new_crafting = set(t.recipes_crafting) - set(y.recipes_crafting)
         if new_cooking:
-            results["new_recipes_cooking"]  = (
-                f"New cooking recipe(s) learned: {', '.join(sorted(new_cooking))}."
+            results["new_recipes_cooking"] = DiffEntry(
+                category="recipes", importance=2,
+                message=f"New cooking recipe(s) learned: {', '.join(sorted(new_cooking))}.",
+                delta=len(new_cooking),
+                details={"recipes": sorted(new_cooking)},
             )
         if new_crafting:
-            results["new_recipes_crafting"] = (
-                f"New crafting recipe(s) learned: {', '.join(sorted(new_crafting))}."
+            results["new_recipes_crafting"] = DiffEntry(
+                category="recipes", importance=2,
+                message=f"New crafting recipe(s) learned: {', '.join(sorted(new_crafting))}.",
+                delta=len(new_crafting),
+                details={"recipes": sorted(new_crafting)},
             )
 
         # ── New minerals found ─────────────────────────────────────────────────
         new_minerals = set(t.minerals_found) - set(y.minerals_found)
         if new_minerals:
-            results["new_minerals"] = (
-                f"New mineral(s) found: {', '.join(sorted(new_minerals))}."
+            results["new_minerals"] = DiffEntry(
+                category="collection", importance=2,
+                message=f"New mineral(s) found: {', '.join(sorted(new_minerals))}.",
+                delta=len(new_minerals),
+                details={"minerals": sorted(new_minerals)},
             )
 
         # ── New artifacts found ────────────────────────────────────────────────
         new_artifacts = set(t.artifacts_found) - set(y.artifacts_found)
         if new_artifacts:
-            results["new_artifacts"] = (
-                f"New artifact(s) discovered: {', '.join(sorted(new_artifacts))}."
+            results["new_artifacts"] = DiffEntry(
+                category="collection", importance=2,
+                message=f"New artifact(s) discovered: {', '.join(sorted(new_artifacts))}.",
+                delta=len(new_artifacts),
+                details={"artifacts": sorted(new_artifacts)},
             )
 
         # ── New achievements unlocked ──────────────────────────────────────────
         new_ach = set(t.achievements) - set(y.achievements)
         if new_ach:
             names = [ACHIEVEMENT_NAMES.get(a, f"Achievement #{a}") for a in sorted(new_ach)]
-            results["new_achievements"] = (
-                f"Achievement(s) unlocked: {', '.join(names)}!"
+            results["new_achievements"] = DiffEntry(
+                category="achievements", importance=3,
+                message=f"Achievement(s) unlocked: {', '.join(names)}!",
+                delta=len(new_ach),
+                details={"achievements": names},
             )
+
+        # ── Mine depth progress ──────────────────────────────────────────────
+        mine_delta = t.deepest_mine_level - y.deepest_mine_level
+        if mine_delta > 0:
+            results["mine_progress"] = DiffEntry(
+                category="progression", importance=2,
+                message=f"Pushed {mine_delta} floors deeper in the mines (now floor {t.deepest_mine_level}).",
+                delta=mine_delta, new_value=t.deepest_mine_level,
+            )
+
+        # ── House upgrade ────────────────────────────────────────────────────
+        if t.house_upgrade_level > y.house_upgrade_level:
+            label = HOUSE_UPGRADE_LABELS.get(t.house_upgrade_level, "Unknown")
+            results["house_upgrade"] = DiffEntry(
+                category="progression", importance=3,
+                message=f"[UPGRADE] House upgraded to '{label}' (level {t.house_upgrade_level})!",
+                delta=t.house_upgrade_level - y.house_upgrade_level,
+                new_value=t.house_upgrade_level,
+            )
+
+        # ── Unlock flags ─────────────────────────────────────────────────────
+        UNLOCK_FLAGS = [
+            ("has_skull_key",          "Skull Key"),
+            ("has_rusty_key",          "Rusty Key"),
+            ("has_special_charm",      "Special Charm"),
+            ("can_understand_dwarves", "Dwarf Language"),
+        ]
+        for attr, label in UNLOCK_FLAGS:
+            if getattr(t, attr) and not getattr(y, attr):
+                results[f"unlock_{attr}"] = DiffEntry(
+                    category="progression", importance=3,
+                    message=f"[UNLOCK] Obtained {label}!",
+                    details={"unlock": label},
+                )
 
         # ── Bundle progress ───────────────────────────────────────────────────
         y_bundles = {b.id: b for b in y.cc_bundles}
@@ -1251,25 +1389,46 @@ class GameStateDiff:
         for bid, tb in t_bundles.items():
             yb = y_bundles.get(bid)
             if yb and tb.is_done() and not yb.is_done():
-                results[f"bundle_done_{bid}"] = (
-                    f"[BUNDLE COMPLETE] '{tb.name}' ({tb.room}) completed!"
+                results[f"bundle_done_{bid}"] = DiffEntry(
+                    category="bundles", importance=3,
+                    message=f"[BUNDLE COMPLETE] '{tb.name}' ({tb.room}) completed!",
+                    details={"bundle": tb.name, "room": tb.room},
                 )
             elif yb and tb.items_donated > yb.items_donated:
                 delta = tb.items_donated - yb.items_donated
-                results[f"bundle_prog_{bid}"] = (
-                    f"Bundle '{tb.name}': +{delta} item(s) donated "
-                    f"({tb.items_donated}/{tb.required} needed)."
+                results[f"bundle_prog_{bid}"] = DiffEntry(
+                    category="bundles", importance=2,
+                    message=(
+                        f"Bundle '{tb.name}': +{delta} item(s) donated "
+                        f"({tb.items_donated}/{tb.required} needed)."
+                    ),
+                    delta=delta, new_value=tb.items_donated,
+                    details={"bundle": tb.name, "room": tb.room},
                 )
 
         return results
 
     def as_text(self) -> str:
+        """Render the diff as a human-readable text block, sorted by importance."""
         diff = self.compute()
         if not diff:
             return "(Nothing notable recorded for yesterday.)"
+        sorted_entries = sorted(diff.values(), key=lambda e: (-e.importance, e.message))
         lines = ["=== Yesterday's Accomplishments ==="]
-        lines += [f"  * {v}" for v in diff.values()]
+        lines += [f"  * {e.message}" for e in sorted_entries]
         return "\n".join(lines)
+
+    def as_dict(self) -> dict[str, str]:
+        """Backward-compatible: return flat dict of key → message strings."""
+        return {k: e.message for k, e in self.compute().items()}
+
+    def compute_by_category(self) -> dict[str, list[DiffEntry]]:
+        """Group diff entries by category for structured consumers."""
+        from collections import defaultdict
+        grouped: dict[str, list[DiffEntry]] = defaultdict(list)
+        for entry in self.compute().values():
+            grouped[entry.category].append(entry)
+        return dict(grouped)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1322,140 +1481,161 @@ class MorningBrief:
         top_friends    = sorted(s.friendship, key=lambda f: f.points, reverse=True)[:6]
 
         return {
-            "date": {
-                "day":    s.day,
-                "season": s.season,
-                "year":   s.year,
-                "label":  f"Day {s.day}, {s.season}, Year {s.year}",
-            },
-            "luck": {
-                "value":  round(s.daily_luck, 4),
-                "label":  luck_label,
-                "tip":    luck_tip,
-            },
-            "weather_tomorrow": {
-                "key":  s.weather_tomorrow,
-                "desc": self._weather_desc(),
-            },
-            "is_raining_now": s.is_raining,
-            "finances": {
-                "wallet":        s.money,
-                "total_earned":  s.total_money_earned,
-            },
-            "skills": {
-                "Farming":  s.farming_level,
-                "Fishing":  s.fishing_level,
-                "Foraging": s.foraging_level,
-                "Mining":   s.mining_level,
-                "Combat":   s.combat_level,
-            },
-            "active_quests": [
-                {
-                    "title":  q.title,
-                    "reward": q.money_reward,
-                }
-                for q in active_quests
-            ],
-            "top_friendships": [
-                {
-                    "npc":    f.npc,
-                    "points": f.points,
-                    "hearts": f.points // 250,
-                    "status": f.status,
-                }
-                for f in top_friends
-            ],
-            "cumulative_stats": {
-                "stone_gathered":   s.stone_gathered,
-                "rocks_crushed":    s.rocks_crushed,
-                "items_shipped":    s.items_shipped,
-                "times_fished":     s.times_fished,
-                "monsters_killed":  s.monsters_killed,
-                "items_crafted":    s.items_crafted,
-                "gifts_given":      s.gifts_given,
-                "days_played":      s.days_played,
-            },
-            "identity": {
-                "farmer_name": s.farmer_name,
-                "farm_name":   s.farm_name,
-                "gender":      s.gender,
-                "pet_type":    s.pet_type,
-            },
-            "vitals": {
-                "health":      s.health,
-                "max_health":  s.max_health,
-                "health_pct":  round(s.health / s.max_health * 100, 1) if s.max_health else 0.0,
-                "stamina":     int(s.stamina),
-                "max_stamina": s.max_stamina,
-                "stamina_pct": round(s.stamina / s.max_stamina * 100, 1) if s.max_stamina else 0.0,
-            },
-            "progression": {
-                "deepest_mine_level":        s.deepest_mine_level,
-                "mine_lowest_level_reached": s.mine_lowest_level_reached,
-                "house_upgrade_level":       s.house_upgrade_level,
-                "house_label":               HOUSE_UPGRADE_LABELS.get(s.house_upgrade_level, "Unknown"),
-                "has_skull_key":             s.has_skull_key,
-                "has_rusty_key":             s.has_rusty_key,
-                "has_special_charm":         s.has_special_charm,
-                "can_understand_dwarves":    s.can_understand_dwarves,
-                "golden_walnuts_found":      s.golden_walnuts_found,
-                "golden_walnuts_remaining":  s.golden_walnuts,
-            },
-            "inventory_summary": {
-                "total_items": len(s.inventory_items),
-                "tools": [
-                    {"name": it["name"], "upgrade_level": it["upgrade_level"]}
-                    for it in s.inventory_items if it["category"] == -99
-                ],
-                "seeds": [
-                    {"name": it["name"], "stack": it["stack"]}
-                    for it in s.inventory_items if it["category"] == -74
-                ],
-                "resources": [
-                    {"name": it["name"], "stack": it["stack"]}
-                    for it in s.inventory_items if it["category"] == -16
+            # ── Daily (changes every day) ────────────────────────────────
+            "daily": {
+                "date": {
+                    "day":    s.day,
+                    "season": s.season,
+                    "year":   s.year,
+                    "label":  f"Day {s.day}, {s.season}, Year {s.year}",
+                },
+                "luck": {
+                    "value":  round(s.daily_luck, 4),
+                    "label":  luck_label,
+                    "tip":    luck_tip,
+                },
+                "weather_tomorrow": {
+                    "key":  s.weather_tomorrow,
+                    "desc": self._weather_desc(),
+                },
+                "is_raining_now": s.is_raining,
+                "vitals": {
+                    "health":      s.health,
+                    "max_health":  s.max_health,
+                    "health_pct":  round(s.health / s.max_health * 100, 1) if s.max_health else 0.0,
+                    "stamina":     int(s.stamina),
+                    "max_stamina": s.max_stamina,
+                    "stamina_pct": round(s.stamina / s.max_stamina * 100, 1) if s.max_stamina else 0.0,
+                },
+                "catchable_fish_today": [
+                    {"name": name, "location": loc, "note": note}
+                    for name, loc, note in get_catchable_fish(s.season, s.is_raining, s.fishing_level)
                 ],
             },
-            "recipes": {
-                "cooking_known":  s.recipes_cooking_count,
-                "crafting_known": s.recipes_crafting_count,
+
+            # ── Progress (changes most days) ─────────────────────────────
+            "progress": {
+                "finances": {
+                    "wallet":        s.money,
+                    "total_earned":  s.total_money_earned,
+                },
+                "skills": {
+                    "Farming":  s.farming_level,
+                    "Fishing":  s.fishing_level,
+                    "Foraging": s.foraging_level,
+                    "Mining":   s.mining_level,
+                    "Combat":   s.combat_level,
+                },
+                "skills_detail": {
+                    name: {
+                        "level": getattr(s, f"{name.lower()}_level"),
+                        **_xp_progress(
+                            s.experience_points[i] if i < len(s.experience_points) else 0,
+                            getattr(s, f"{name.lower()}_level"),
+                        )
+                    }
+                    for i, name in enumerate(["Farming", "Fishing", "Foraging", "Mining", "Combat"])
+                },
+                "active_quests": [
+                    {
+                        "title":  q.title,
+                        "reward": q.money_reward,
+                    }
+                    for q in active_quests
+                ],
+                "top_friendships": [
+                    {
+                        "npc":          f.npc,
+                        "points":       f.points,
+                        "hearts":       f.points // 250,
+                        "status":       f.status,
+                        "talked_today": f.talked_today,
+                    }
+                    for f in top_friends
+                ],
+                "cumulative_stats": {
+                    "stone_gathered":    s.stone_gathered,
+                    "rocks_crushed":     s.rocks_crushed,
+                    "items_shipped":     s.items_shipped,
+                    "times_fished":      s.times_fished,
+                    "monsters_killed":   s.monsters_killed,
+                    "items_crafted":     s.items_crafted,
+                    "gifts_given":       s.gifts_given,
+                    "days_played":       s.days_played,
+                    "crops_shipped":     s.crops_shipped,
+                    "items_foraged":     s.items_foraged,
+                    "weeds_eliminated":  s.weeds_eliminated,
+                    "dirt_hoed":         s.dirt_hoed,
+                    "geodes_cracked":    s.geodes_cracked,
+                    "items_cooked":      s.items_cooked,
+                    "steps_taken":       s.steps_taken,
+                },
+                "inventory_summary": {
+                    "total_items": len(s.inventory_items),
+                    "tools": [
+                        {"name": it["name"], "upgrade_level": it["upgrade_level"]}
+                        for it in s.inventory_items if it["category"] == -99
+                    ],
+                    "seeds": [
+                        {"name": it["name"], "stack": it["stack"]}
+                        for it in s.inventory_items if it["category"] == -74
+                    ],
+                    "resources": [
+                        {"name": it["name"], "stack": it["stack"]}
+                        for it in s.inventory_items if it["category"] == -16
+                    ],
+                },
             },
-            "professions": [
-                {"id": pid, "name": PROFESSION_NAMES.get(pid, f"Unknown({pid})")}
-                for pid in s.professions
-            ],
-            "skills_detail": {
-                name: {
-                    "level": getattr(s, f"{name.lower()}_level"),
-                    **_xp_progress(
-                        s.experience_points[i] if i < len(s.experience_points) else 0,
-                        getattr(s, f"{name.lower()}_level"),
-                    )
-                }
-                for i, name in enumerate(["Farming", "Fishing", "Foraging", "Mining", "Combat"])
+
+            # ── Collections (grows over time) ────────────────────────────
+            "collections": {
+                "fish_collection": {
+                    "total_species": len(s.fish_caught),
+                    "species": sorted(s.fish_caught.keys()),
+                },
+                "collection": {
+                    "minerals_found":  len(s.minerals_found),
+                    "artifacts_found": len(s.artifacts_found),
+                    "minerals":  dict(sorted(s.minerals_found.items())),
+                    "artifacts": dict(sorted(s.artifacts_found.items())),
+                },
+                "achievements": {
+                    "count":  len(s.achievements),
+                    "names":  [ACHIEVEMENT_NAMES.get(a, f"#{a}") for a in sorted(s.achievements)],
+                },
+                "recipes": {
+                    "cooking_known":  s.recipes_cooking_count,
+                    "crafting_known": s.recipes_crafting_count,
+                },
             },
-            "fish_collection": {
-                "total_species": len(s.fish_caught),
-                "species": sorted(s.fish_caught.keys()),
+
+            # ── Profile (rarely changes) ─────────────────────────────────
+            "profile": {
+                "identity": {
+                    "farmer_name": s.farmer_name,
+                    "farm_name":   s.farm_name,
+                    "gender":      s.gender,
+                    "pet_type":    s.pet_type,
+                },
+                "progression": {
+                    "deepest_mine_level":        s.deepest_mine_level,
+                    "mine_lowest_level_reached": s.mine_lowest_level_reached,
+                    "house_upgrade_level":       s.house_upgrade_level,
+                    "house_label":               HOUSE_UPGRADE_LABELS.get(s.house_upgrade_level, "Unknown"),
+                    "has_skull_key":             s.has_skull_key,
+                    "has_rusty_key":             s.has_rusty_key,
+                    "has_special_charm":         s.has_special_charm,
+                    "can_understand_dwarves":    s.can_understand_dwarves,
+                    "golden_walnuts_found":      s.golden_walnuts_found,
+                    "golden_walnuts_remaining":  s.golden_walnuts,
+                },
+                "professions": [
+                    {"id": pid, "name": PROFESSION_NAMES.get(pid, f"Unknown({pid})")}
+                    for pid in s.professions
+                ],
             },
-            "catchable_fish_today": [
-                {"name": name, "location": loc, "note": note}
-                for name, loc, note in get_catchable_fish(s.season, s.is_raining, s.fishing_level)
-            ],
-            "achievements": {
-                "count":  len(s.achievements),
-                "names":  [ACHIEVEMENT_NAMES.get(a, f"#{a}") for a in sorted(s.achievements)],
-            },
-            "collection": {
-                "minerals_found":  len(s.minerals_found),
-                "artifacts_found": len(s.artifacts_found),
-                "minerals":  dict(sorted(s.minerals_found.items())),
-                "artifacts": dict(sorted(s.artifacts_found.items())),
-            },
-            "recipes": {
-                "cooking_known":  s.recipes_cooking_count,
-                "crafting_known": s.recipes_crafting_count,
-            },
+
+            # ── Community Center ─────────────────────────────────────────
             "community_center": {
                 "rooms_complete": s.cc_rooms_complete,
                 "rooms_done": sum(s.cc_rooms_complete) if s.cc_rooms_complete else 0,
@@ -1503,7 +1683,7 @@ class MorningBrief:
         lines = [
             divider("="),
             f"|{'  MORNING BRIEF':^{W}}|",
-            f"|{'  ' + d['date']['label']:^{W}}|",
+            f"|{'  ' + d['daily']['date']['label']:^{W}}|",
             divider("-"),
             row(f"  Wallet:    {wallet_str}"),
             row(f"  Luck:      {luck_label} ({s.daily_luck:+.3f})"),
@@ -1599,7 +1779,7 @@ def build_llm_prompt(brief: MorningBrief, diff: Optional[GameStateDiff] = None) 
         prof_hint = "None yet (requires level 5+ in a skill)"
 
     # ── Tool summary ──────────────────────────────────────────────────────────
-    tools = d.get("inventory_summary", {}).get("tools", [])
+    tools = d.get("progress", {}).get("inventory_summary", {}).get("tools", [])
     tool_str = ", ".join(
         f"{t['name']}(L{t['upgrade_level']})" if t.get("upgrade_level") is not None
         else t["name"]
@@ -1607,7 +1787,7 @@ def build_llm_prompt(brief: MorningBrief, diff: Optional[GameStateDiff] = None) 
     ) or "Standard starter tools"
 
     # ── Seeds in bag ─────────────────────────────────────────────────────────
-    seeds = d.get("inventory_summary", {}).get("seeds", [])
+    seeds = d.get("progress", {}).get("inventory_summary", {}).get("seeds", [])
     seed_str = ", ".join(f"{it['name']} x{it['stack']}" for it in seeds) or "None"
 
     # ── Skills close to leveling up (≥75% progress) ───────────────────────────
@@ -1755,7 +1935,7 @@ Structure your response EXACTLY as follows:
 
 ### Good Morning!
 A short (2-3 sentence) encouraging opener that references today's luck ({luck_label}),
-the weather ({d['weather_tomorrow']['desc']}), and any big wins from yesterday.
+the weather ({d['daily']['weather_tomorrow']['desc']}), and any big wins from yesterday.
 Mention {s.farmer_name or "the farmer"}'s current stage ({house_label}, {mine_hint.lower()}).
 
 ### Top Priorities
