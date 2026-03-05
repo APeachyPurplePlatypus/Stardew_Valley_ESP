@@ -14,11 +14,27 @@ echo.
 echo [1/6] Checking Python...
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo   ERROR: Python is not installed or not in PATH.
-    echo   Please install Python 3.10+ from https://www.python.org/downloads/
-    echo   Make sure to check "Add Python to PATH" during installation.
-    pause
-    exit /b 1
+    echo   Python not found. Installing via winget...
+    winget install Python.Python.3.12 --accept-package-agreements --accept-source-agreements
+    if errorlevel 1 (
+        echo   ERROR: Failed to install Python via winget.
+        echo   Please install Python 3.10+ manually from https://www.python.org/downloads/
+        echo   Make sure to check "Add Python to PATH" during installation.
+        pause
+        exit /b 1
+    )
+    echo   Python installed. Refreshing PATH...
+    :: Refresh PATH so python is available in this session
+    for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v Path 2^>nul') do set "USER_PATH=%%b"
+    for /f "tokens=2*" %%a in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path 2^>nul') do set "SYS_PATH=%%b"
+    set "PATH=!USER_PATH!;!SYS_PATH!"
+    python --version >nul 2>&1
+    if errorlevel 1 (
+        echo   WARNING: Python was installed but is not yet in PATH.
+        echo   Please close this window, open a new Command Prompt, and run setup again.
+        pause
+        exit /b 1
+    )
 )
 for /f "tokens=2 delims= " %%v in ('python --version 2^>^&1') do set PYVER=%%v
 echo   Found Python %PYVER%
@@ -108,7 +124,8 @@ echo   SMAPI not found. Downloading latest installer...
 
 :: Download latest SMAPI release from GitHub
 set "SMAPI_ZIP=%TEMP%\SMAPI-latest.zip"
-set "SMAPI_DIR=%TEMP%\SMAPI-install"
+:: Extract outside %TEMP% — SMAPI installer refuses to run from temp paths
+set "SMAPI_DIR=%USERPROFILE%\SMAPI-install"
 
 powershell -Command ^
     "$release = Invoke-RestMethod -Uri 'https://api.github.com/repos/Pathoschild/SMAPI/releases/latest'; " ^
@@ -137,19 +154,19 @@ echo   SMAPI installer downloaded and extracted.
 echo   Running SMAPI installer — follow the prompts:
 echo.
 
-:: Find and run the installer
-for /r "!SMAPI_DIR!" %%f in (install*.exe) do (
-    "%%f"
-    goto :smapi_installed
+:: Find the SMAPI installer exe directly (skip the wrapper .bat)
+set "SMAPI_EXE="
+for /f "delims=" %%f in ('dir /s /b "!SMAPI_DIR!\SMAPI.Installer.exe" 2^>nul') do set "SMAPI_EXE=%%f"
+if not defined SMAPI_EXE for /f "delims=" %%f in ('dir /s /b "!SMAPI_DIR!\install*.exe" 2^>nul') do set "SMAPI_EXE=%%f"
+
+if not defined SMAPI_EXE (
+    echo   WARNING: Could not find SMAPI installer executable.
+    echo   Please install SMAPI manually from: https://smapi.io
+    goto :skip_smapi
 )
-:: If no exe found, try the bat
-for /r "!SMAPI_DIR!" %%f in (install*.bat) do (
-    call "%%f"
-    goto :smapi_installed
-)
-echo   WARNING: Could not find SMAPI installer executable.
-echo   Please install SMAPI manually from: https://smapi.io
-goto :skip_smapi
+
+start "SMAPI Installer" /wait "!SMAPI_EXE!"
+goto :smapi_installed
 
 :smapi_installed
 echo   SMAPI installation complete.
@@ -211,4 +228,7 @@ echo.
 echo   Optional: Set ANTHROPIC_API_KEY environment variable to enable
 echo   the run_coaching_agent tool in Claude Desktop.
 echo.
-pause
+echo   This window is running the MCP server. Closing it will stop the server.
+echo   Press Ctrl+C or close this window to stop.
+echo.
+python agents\stardew_mcp_server.py
