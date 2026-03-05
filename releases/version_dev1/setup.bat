@@ -83,8 +83,9 @@ for %%d in (
 
 if "!SV_DIR!"=="" (
     echo   Could not auto-detect Stardew Valley install path.
-    set /p SV_DIR="  Enter your Stardew Valley install folder: "
 )
+:: Prompt outside the if-block so paths with parentheses don't break parsing
+if "!SV_DIR!"=="" set /p SV_DIR="  Enter your Stardew Valley install folder: "
 
 if not exist "!SV_DIR!\Stardew Valley.exe" (
     echo   WARNING: Stardew Valley not found at: !SV_DIR!
