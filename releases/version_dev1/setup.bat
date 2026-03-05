@@ -75,18 +75,21 @@ for %%d in (
     "D:\SteamLibrary\steamapps\common\Stardew Valley"
     "E:\Steam\steamapps\common\Stardew Valley"
     "E:\SteamLibrary\steamapps\common\Stardew Valley"
+    "G:\SteamLibrary\steamapps\common\Stardew Valley"
 ) do (
     if exist "%%~d\Stardew Valley.exe" (
         set "SV_DIR=%%~d"
     )
 )
 
-if "!SV_DIR!"=="" (
-    echo   Could not auto-detect Stardew Valley install path.
-)
-:: Prompt outside the if-block so paths with parentheses don't break parsing
-if "!SV_DIR!"=="" set /p SV_DIR="  Enter your Stardew Valley install folder: "
+if not "!SV_DIR!"=="" goto :sv_found
 
+echo   Could not auto-detect Stardew Valley install path.
+set /p SV_DIR="  Enter your Stardew Valley install folder: "
+:: Strip surrounding quotes if user included them
+set "SV_DIR=!SV_DIR:"=!"
+
+:sv_found
 if not exist "!SV_DIR!\Stardew Valley.exe" (
     echo   WARNING: Stardew Valley not found at: !SV_DIR!
     echo   Skipping SMAPI and mod installation.
@@ -98,64 +101,64 @@ echo   Stardew Valley found at: !SV_DIR!
 :: Check SMAPI
 if exist "!SV_DIR!\StardewModdingAPI.exe" (
     echo   SMAPI is already installed.
-) else (
-    echo   SMAPI not found. Downloading latest installer...
-
-    :: Download latest SMAPI release from GitHub
-    set "SMAPI_ZIP=%TEMP%\SMAPI-latest.zip"
-    set "SMAPI_DIR=%TEMP%\SMAPI-install"
-
-    :: Use PowerShell to get latest release URL and download
-    powershell -Command ^
-        "$release = Invoke-RestMethod -Uri 'https://api.github.com/repos/Pathoschild/SMAPI/releases/latest'; " ^
-        "$asset = $release.assets | Where-Object { $_.name -like '*installer*.zip' } | Select-Object -First 1; " ^
-        "if ($asset) { " ^
-        "  Write-Host \"  Downloading $($asset.name)...\"; " ^
-        "  Invoke-WebRequest -Uri $asset.browser_download_url -OutFile '%SMAPI_ZIP%'; " ^
-        "  Write-Host '  Download complete.'" ^
-        "} else { " ^
-        "  Write-Host '  ERROR: Could not find SMAPI installer in latest release.'; " ^
-        "  exit 1 " ^
-        "}"
-
-    if errorlevel 1 (
-        echo   WARNING: Failed to download SMAPI.
-        echo   Please install SMAPI manually from: https://smapi.io
-        goto :skip_smapi
-    )
-
-    :: Extract and run installer
-    if exist "!SMAPI_DIR!" rmdir /s /q "!SMAPI_DIR!"
-    powershell -Command "Expand-Archive -Path '%SMAPI_ZIP%' -DestinationPath '%SMAPI_DIR%' -Force"
-
-    echo.
-    echo   SMAPI installer downloaded and extracted.
-    echo   Running SMAPI installer — follow the prompts:
-    echo.
-
-    :: Find and run the installer
-    for /r "!SMAPI_DIR!" %%f in (install*.exe) do (
-        "%%f"
-        goto :smapi_installed
-    )
-    :: If no exe found, try the bat
-    for /r "!SMAPI_DIR!" %%f in (install*.bat) do (
-        call "%%f"
-        goto :smapi_installed
-    )
-    echo   WARNING: Could not find SMAPI installer executable.
-    echo   Please install SMAPI manually from: https://smapi.io
-    goto :skip_smapi
-
-    :smapi_installed
-    echo   SMAPI installation complete.
-
-    :: Clean up
-    del "!SMAPI_ZIP!" 2>nul
-    rmdir /s /q "!SMAPI_DIR!" 2>nul
+    goto :install_mod
 )
 
+echo   SMAPI not found. Downloading latest installer...
+
+:: Download latest SMAPI release from GitHub
+set "SMAPI_ZIP=%TEMP%\SMAPI-latest.zip"
+set "SMAPI_DIR=%TEMP%\SMAPI-install"
+
+powershell -Command ^
+    "$release = Invoke-RestMethod -Uri 'https://api.github.com/repos/Pathoschild/SMAPI/releases/latest'; " ^
+    "$asset = $release.assets | Where-Object { $_.name -like '*installer*.zip' } | Select-Object -First 1; " ^
+    "if ($asset) { " ^
+    "  Write-Host \"  Downloading $($asset.name)...\"; " ^
+    "  Invoke-WebRequest -Uri $asset.browser_download_url -OutFile '%SMAPI_ZIP%'; " ^
+    "  Write-Host '  Download complete.'" ^
+    "} else { " ^
+    "  Write-Host '  ERROR: Could not find SMAPI installer in latest release.'; " ^
+    "  exit 1 " ^
+    "}"
+
+if errorlevel 1 (
+    echo   WARNING: Failed to download SMAPI.
+    echo   Please install SMAPI manually from: https://smapi.io
+    goto :skip_smapi
+)
+
+:: Extract and run installer
+if exist "!SMAPI_DIR!" rmdir /s /q "!SMAPI_DIR!"
+powershell -Command "Expand-Archive -Path '%SMAPI_ZIP%' -DestinationPath '%SMAPI_DIR%' -Force"
+
+echo.
+echo   SMAPI installer downloaded and extracted.
+echo   Running SMAPI installer — follow the prompts:
+echo.
+
+:: Find and run the installer
+for /r "!SMAPI_DIR!" %%f in (install*.exe) do (
+    "%%f"
+    goto :smapi_installed
+)
+:: If no exe found, try the bat
+for /r "!SMAPI_DIR!" %%f in (install*.bat) do (
+    call "%%f"
+    goto :smapi_installed
+)
+echo   WARNING: Could not find SMAPI installer executable.
+echo   Please install SMAPI manually from: https://smapi.io
+goto :skip_smapi
+
+:smapi_installed
+echo   SMAPI installation complete.
+:: Clean up
+del "!SMAPI_ZIP!" 2>nul
+rmdir /s /q "!SMAPI_DIR!" 2>nul
+
 :: ── Step 6: Install StardewMCP mod ───────────────────────────
+:install_mod
 echo.
 echo [6/6] Installing StardewMCP mod...
 set "MODS_DIR=!SV_DIR!\Mods\StardewMCP"
