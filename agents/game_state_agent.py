@@ -22,6 +22,24 @@ USAGE:
     python game_state_agent.py --saves-dir "Saves"
 """
 
+# ─────────────────────────────────────────────────────────────────────────────
+# THIRD-PARTY DATA SOURCES
+# ─────────────────────────────────────────────────────────────────────────────
+# This file uses data and protocols from the following projects:
+#
+# stardewids (MateusAquino) — MIT License
+#   https://github.com/MateusAquino/stardewids
+#   Item ID-to-name mappings used for MINERAL_NAMES, ARTIFACT_NAMES,
+#   FISH_ID_NAMES, and BUNDLE_ITEM_NAMES constants below.
+#
+# stardew-mcp (Hunter-Thompson) — No license specified
+#   https://github.com/Hunter-Thompson/stardew-mcp
+#   SMAPI mod providing live game state via WebSocket. The LiveAdapter class
+#   and from_live_json() function integrate with its WebSocket protocol.
+#
+# See THIRD_PARTY.md for full attribution details.
+# ─────────────────────────────────────────────────────────────────────────────
+
 import os
 import sys
 import json

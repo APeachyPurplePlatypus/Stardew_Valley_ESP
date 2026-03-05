@@ -38,6 +38,17 @@ NOTE: All data comes from the live WebSocket (stardew-mcp SMAPI mod).
       The game must be running with SMAPI for any tool to work.
 """
 
+# ─────────────────────────────────────────────────────────────────────────────
+# THIRD-PARTY DEPENDENCIES
+# ─────────────────────────────────────────────────────────────────────────────
+# stardew-mcp (Hunter-Thompson) — No license specified
+#   https://github.com/Hunter-Thompson/stardew-mcp
+#   This MCP server connects to the stardew-mcp SMAPI mod's WebSocket endpoint
+#   to serve live game state to Claude Desktop.
+#
+# See THIRD_PARTY.md for full attribution details.
+# ─────────────────────────────────────────────────────────────────────────────
+
 import os
 import json
 import logging
@@ -66,7 +77,7 @@ from game_state_agent import (  # noqa: E402
     MorningBrief,
     LiveAdapter,
     from_live_json,
-    get_catchable_fish,
+    get_catchable_fish as _get_catchable_fish,
     build_llm_prompt,
 )
 
@@ -184,7 +195,7 @@ def get_catchable_fish() -> str:
     and fishing skill level. Includes location hints and minimum skill requirements.
     """
     state = _get_live_state()
-    fish  = get_catchable_fish(
+    fish  = _get_catchable_fish(
         state.season, state.is_raining, state.fishing_level,
         has_rusty_key=state.has_rusty_key,
         mine_level=state.deepest_mine_level,
@@ -260,6 +271,22 @@ def run_coaching_agent(task: str = "") -> str:
         messages=[{"role": "user", "content": prompt}],
     )
     return response.content[0].text
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PROMPTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@mcp.prompt()
+def start_coaching() -> str:
+    """Start a Stardew Valley coaching session. Checks your live game
+    state and gives you a personalised daily plan."""
+    return (
+        "I just started playing Stardew Valley. Check my live game state "
+        "and give me a full coaching briefing for today — what should I "
+        "focus on, what fish can I catch, how are my bundles looking, "
+        "and any tips based on the current weather and luck."
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
