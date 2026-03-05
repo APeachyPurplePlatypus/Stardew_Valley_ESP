@@ -1,8 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Navigate to project root (two levels up from releases/version_dev1/)
-cd /d "%~dp0..\.."
+:: Stay in the same folder as this script
+cd /d "%~dp0"
 
 echo.
 echo ============================================================
@@ -23,4 +23,4 @@ echo   Claude Desktop will connect to this server automatically.
 echo.
 echo   Close this window or press Ctrl+C to stop the server.
 echo.
-mcp run agents\stardew_mcp_server.py
+mcp run stardew_mcp_server.py

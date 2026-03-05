@@ -1,8 +1,8 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: Navigate to project root (two levels up from releases/version_dev1/)
-cd /d "%~dp0..\.."
+:: Stay in the same folder as this script
+cd /d "%~dp0"
 
 echo.
 echo ============================================================
@@ -50,7 +50,7 @@ if not exist ".venv" (
 )
 call .venv\Scripts\activate.bat
 echo   Installing dependencies...
-pip install -r releases\version_dev1\requirements.txt --quiet
+pip install -r requirements.txt --quiet
 echo   Dependencies installed.
 
 :: ── Step 3: Claude Desktop ────────────────────────────────────
@@ -76,7 +76,7 @@ if exist "!CLAUDE_EXE!" (
 :: ── Step 4: Configure MCP ─────────────────────────────────────
 echo.
 echo [4/6] Configuring Claude Desktop MCP server...
-python scripts\configure_mcp.py
+python configure_mcp.py
 
 :: ── Step 5: Stardew Valley + SMAPI ────────────────────────────
 echo.
@@ -219,7 +219,7 @@ echo ============================================================
 echo.
 echo   Quick start:
 echo     1. Launch Stardew Valley through SMAPI (StardewModdingAPI.exe)
-echo     2. Run releases\version_dev1\start.bat to start the MCP server
+echo     2. Run start.bat to start the MCP server
 echo     3. In Claude Desktop, click "+" and select "Start Coaching"
 echo.
 echo   Optional: Set ANTHROPIC_API_KEY environment variable to enable
@@ -228,4 +228,4 @@ echo.
 echo   Starting MCP server now...
 echo   Close this window or press Ctrl+C to stop the server.
 echo.
-mcp run agents\stardew_mcp_server.py
+mcp run stardew_mcp_server.py
