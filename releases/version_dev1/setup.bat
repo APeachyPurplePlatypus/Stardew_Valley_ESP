@@ -165,7 +165,7 @@ if not defined SMAPI_EXE (
     goto :skip_smapi
 )
 
-start "SMAPI Installer" /wait "!SMAPI_EXE!"
+start "SMAPI Installer" /wait cmd /c ""!SMAPI_EXE!""
 goto :smapi_installed
 
 :smapi_installed
@@ -219,16 +219,13 @@ echo ============================================================
 echo.
 echo   Quick start:
 echo     1. Launch Stardew Valley through SMAPI (StardewModdingAPI.exe)
-echo     2. In Claude Desktop, click "+" and select "Start Coaching"
-echo.
-echo   Save-file mode (no game running):
-echo     .venv\Scripts\activate
-echo     python agents\game_state_agent.py --saves-dir saves --once
+echo     2. Run releases\version_dev1\start.bat to start the MCP server
+echo     3. In Claude Desktop, click "+" and select "Start Coaching"
 echo.
 echo   Optional: Set ANTHROPIC_API_KEY environment variable to enable
 echo   the run_coaching_agent tool in Claude Desktop.
 echo.
-echo   This window is running the MCP server. Closing it will stop the server.
-echo   Press Ctrl+C or close this window to stop.
+echo   Starting MCP server now...
+echo   Close this window or press Ctrl+C to stop the server.
 echo.
-python agents\stardew_mcp_server.py
+mcp run agents\stardew_mcp_server.py

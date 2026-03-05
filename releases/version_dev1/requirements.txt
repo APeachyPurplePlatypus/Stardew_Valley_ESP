@@ -1,5 +1,5 @@
 watchdog
 openpyxl
 websockets
-mcp
+mcp[cli]
 anthropic
