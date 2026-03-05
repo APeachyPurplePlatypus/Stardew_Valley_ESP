@@ -1,0 +1,5 @@
+watchdog
+openpyxl
+websockets
+mcp
+anthropic

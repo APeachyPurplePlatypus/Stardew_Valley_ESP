@@ -1,6 +1,6 @@
 # Stardew Valley ESP
 
-An intelligent agent that reads your Stardew Valley save files and generates a personalised daily walkthrough to help you 100% the game as efficiently as possible.
+An intelligent (read as sloppy and expensive) agent that reads your Stardew Valley save files and generates a personalised daily walkthrough to help you 100% the game as efficiently as possible.
 
 The agent tracks your progress day-to-day, alerts you to tasks nearing completion, and adapts its coaching to your current season, luck, relationships, and active quests. It does not highlight entities, provide wallhacks, or modify the game in any way — it only reads save data.
 
@@ -25,87 +25,147 @@ The agent tracks your progress day-to-day, alerts you to tasks nearing completio
 
 ```
 agents/          Game State Agent, Live Adapter, and MCP server
-scripts/         Utility scripts (XML → Excel attribute dumper)
+scripts/         Utility scripts (XML → Excel dumper, MCP configurator)
+mods/            Pre-built SMAPI mods (StardewMCP) for easy installation
 saves/           Stardew Valley save folders (committed for dev/testing)
 output/          Generated outputs — recreated on each run, not committed
-archive/         Archived outputs from previous features
-commit_summaries/ Per-commit documentation
 WORKFLOW.md      Architecture, data flow, and development notes
 ```
 
 ---
 
-## Setup
+## Quick Start
 
-**Requirements:** Python 3.10+
+### Prerequisites
+
+- **Python 3.10+** — [python.org/downloads](https://python.org/downloads/) (check "Add Python to PATH" on Windows)
+- **Stardew Valley** — Steam, GOG, or any PC version
+- **Git** — to clone the repo ([git-scm.com](https://git-scm.com/))
+
+### 1. Clone the repo
 
 ```bash
-# Clone the repo
 git clone https://github.com/APeachyPurplePlatypus/Stardew_Valley_ESP.git
 cd Stardew_Valley_ESP
+```
 
-# Create a virtual environment (recommended)
+### 2. Run the setup script
+
+**Windows:**
+```
+releases\version_dev1\setup.bat
+```
+
+**macOS / Linux:**
+```bash
+chmod +x releases/version_dev1/setup.sh
+./releases/version_dev1/setup.sh
+```
+
+The setup script will:
+1. Create a Python virtual environment and install all dependencies
+2. Install Claude Desktop if not already present (winget on Windows, brew/dpkg on macOS/Linux)
+3. Configure Claude Desktop's MCP server for stardew-esp (auto-detects paths)
+4. Install SMAPI if not present (downloads latest from GitHub)
+5. Copy the bundled StardewMCP mod to your Stardew Valley Mods folder
+6. Launch Claude Desktop when finished
+
+### 3. Launch the game
+
+Start Stardew Valley through **SMAPI** (run `StardewModdingAPI.exe`, not `Stardew Valley.exe`). You should see `[StardewMCP]` in the SMAPI console window — this confirms the mod is loaded.
+
+### 4. Start coaching
+
+Open Claude Desktop, click the **+** button in the chat input, and select **"Start Coaching"**. Claude will read your live game state and give you a personalised daily briefing.
+
+You can also ask Claude anything directly — it has real-time access to your game.
+
+<img src="images/Screenshot%202026-03-04%20201437.png" alt="Claude Desktop with stardew-esp MCP connected" width="45%">
+
+### Verify everything is working
+
+After loading a save, you can confirm the WebSocket is live:
+
+```bash
+python -c "
+import websockets.sync.client as ws
+c = ws.connect('ws://localhost:8765/game')
+print(c.recv()[:200])
+"
+```
+
+If this prints a JSON message, you're all set. If it fails, see the [FAQ](FAQ.md) for troubleshooting.
+
+> **Optional:** set the `ANTHROPIC_API_KEY` environment variable to enable the `run_coaching_agent` tool (spawns a separate Claude API call for deep analysis). This is not required — Claude Desktop can do complex planning without it.
+
+### Manual Setup
+
+If you prefer to set things up manually:
+
+```bash
+# Create a virtual environment
 python -m venv .venv
 .venv\Scripts\activate        # Windows
 # source .venv/bin/activate   # macOS / Linux
 
-# Core dependencies (save-file mode)
-pip install watchdog openpyxl
+# Install all dependencies
+pip install -r releases/version_dev1/requirements.txt
 
-# Live mode + Claude Desktop MCP (additional)
-pip install websockets mcp
+# Configure Claude Desktop MCP (auto-detects paths)
+python scripts/configure_mcp.py
 ```
+
+For SMAPI and mod installation, see [Live Setup](#live-setup) below.
 
 ---
 
 ## Usage
 
-### Watch Mode (recommended)
-Automatically analyses your save every time you sleep in-game.
+### Claude Desktop (recommended)
+After running the setup script, launch Stardew Valley through SMAPI and open Claude Desktop.
+
+To start coaching, click the **+** button in the chat input and select **"Start Coaching"** — this pre-fills a prompt that triggers a full daily briefing with zero typing.
+
+You can also ask Claude anything directly:
+
+- *"What should I do today?"*
+- *"What's my Community Center progress?"*
+- *"Plan the most efficient path to 100% this season"*
+
+Claude has real-time access to your game state, surroundings, inventory, and save data.
+
+### Live WebSocket Mode (CLI)
+The default CLI mode. Connects to the stardew-mcp SMAPI mod for real-time game state — time of day, player position, 61×61 ASCII surroundings map, and everything from save files.
 
 ```bash
-# Against your live game saves (default)
-python agents/game_state_agent.py
-
-# Against the dev saves in this repo
-python agents/game_state_agent.py --saves-dir saves
-```
-
-The agent watches `%APPDATA%\StardewValley\Saves` by default on Windows.
-Press `Ctrl+C` to stop.
-
-### One-Shot Mode
-Analyse the current save once and exit — useful for testing.
-
-```bash
-python agents/game_state_agent.py --once
-
-# Against dev saves
-python agents/game_state_agent.py --saves-dir saves --once
-```
-
-### JSON Output Only
-Prints the Morning Brief as clean JSON — useful for piping to other tools.
-
-```bash
-python agents/game_state_agent.py --saves-dir saves --json
-```
-
-### Live WebSocket Mode
-Requires the **stardew-mcp SMAPI mod** running inside Stardew Valley (see [Live Setup](#live-setup) below).
-
-```bash
-# One live snapshot (game must be running with SMAPI + stardew-mcp):
-python agents/game_state_agent.py --live --once
-
-# Watch mode — re-analyses on each new in-game day:
+# Watch mode — re-analyses on each new in-game day (default):
 python agents/game_state_agent.py --live
+
+# One live snapshot:
+python agents/game_state_agent.py --live --once
 
 # Custom WebSocket URL:
 python agents/game_state_agent.py --live --live-url ws://localhost:8765/game
 ```
 
-Live mode adds time of day, player position, and a 61×61 ASCII surroundings map to the coaching prompt.
+### Save-File Mode (offline)
+Works without the game running — reads save files directly. Useful for testing or offline analysis.
+
+```bash
+# Watch mode — triggers on each in-game sleep:
+python agents/game_state_agent.py
+
+# One-shot analysis:
+python agents/game_state_agent.py --once
+
+# Against dev saves in this repo:
+python agents/game_state_agent.py --saves-dir saves --once
+
+# JSON output only (for piping to other tools):
+python agents/game_state_agent.py --saves-dir saves --json
+```
+
+The agent watches `%APPDATA%\StardewValley\Saves` by default on Windows.
 
 ### Attribute Dumper
 Extracts every XML attribute from your save into an Excel spreadsheet for research.
@@ -137,28 +197,35 @@ No API key is required. Claude Desktop is already Claude — for complex plannin
 
 ### MCP Setup
 
-1. **Complete [Live Setup](#live-setup)** (SMAPI + stardew-mcp mod) — required for live tools. Save-file tools work without the game running.
+> **Note:** If you used `setup.bat` or `setup.sh`, steps 1–3 were done automatically. Skip to step 4.
+
+1. **Complete [Live Setup](#live-setup)** (SMAPI + StardewMCP mod) — required for live tools. Save-file tools work without the game running.
 
 2. **Install Python MCP SDK:**
    ```bash
-   pip install mcp websockets
+   pip install -r requirements.txt
    ```
 
-3. **Configure Claude Desktop** — edit `%APPDATA%\Claude\claude_desktop_config.json`.
-   Use the **full path** to your Python executable (run `where python` to find it):
-   ```json
-   {
-     "mcpServers": {
-       "stardew-esp": {
-         "command": "C:/Users/<you>/AppData/Local/Microsoft/WindowsApps/python.exe",
-         "args": ["C:/path/to/Stardew_Valley_ESP/agents/stardew_mcp_server.py"],
-         "env": {
-           "STARDEW_SAVES_DIR": "C:/Users/<you>/AppData/Roaming/StardewValley/Saves"
-         }
-       }
-     }
-   }
+3. **Configure Claude Desktop** — run the auto-configurator:
+   ```bash
+   python scripts/configure_mcp.py
    ```
+   This merges the `stardew-esp` MCP server entry into your Claude Desktop config, auto-detecting all paths. Existing MCP servers are preserved.
+
+   > To configure manually, edit `%APPDATA%\Claude\claude_desktop_config.json`:
+   > ```json
+   > {
+   >   "mcpServers": {
+   >     "stardew-esp": {
+   >       "command": "C:/path/to/.venv/Scripts/python.exe",
+   >       "args": ["C:/path/to/Stardew_Valley_ESP/agents/stardew_mcp_server.py"],
+   >       "env": {
+   >         "STARDEW_SAVES_DIR": "C:/Users/<you>/AppData/Roaming/StardewValley/Saves"
+   >       }
+   >     }
+   >   }
+   > }
+   > ```
    > Optional: add `"ANTHROPIC_API_KEY": "sk-ant-..."` to the `env` block to enable `run_coaching_agent`.
 
 4. **Restart Claude Desktop** fully (quit from system tray, relaunch). The stardew-esp tools will appear in the tool picker (hammer icon).
@@ -172,33 +239,27 @@ No API key is required. Claude Desktop is already Claude — for complex plannin
 
 ## Live Setup
 
-Both `--live` mode and the live Claude Desktop MCP tools require the **stardew-mcp SMAPI mod**.
+Both `--live` mode and the live Claude Desktop MCP tools require **SMAPI** and the **StardewMCP mod**.
+
+> **Note:** If you used `setup.bat` or `setup.sh`, SMAPI and the StardewMCP mod were installed automatically. Skip to step 3.
 
 1. **Install SMAPI:** https://smapi.io
 
-2. **Install .NET 6 SDK** (required to build the mod):
-   https://dotnet.microsoft.com/download/dotnet/6.0
-
-3. **Build and install the mod:**
+2. **Install the StardewMCP mod** — a pre-built copy is included in `mods/StardewMCP/`. Copy it to your game's Mods folder:
    ```powershell
-   git clone https://github.com/Hunter-Thompson/stardew-mcp
-   cd stardew-mcp\mod\StardewMCP
-   dotnet build
+   # Windows (default Steam path):
+   xcopy /s /i mods\StardewMCP "C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\StardewMCP"
    ```
-   > Note: the project is at `mod/StardewMCP/` — not `StardewMod/` as the upstream README states.
-   >
-   > The build patches one upstream compatibility error in `CommandExecutor.cs` (CS8917 — Stardew 1.6 changed the type of `craftingRecipes`/`cookingRecipes`). If the build fails with that error, see the fix in `WORKFLOW.md §7`.
-
-   Extract the output zip into your game's Mods folder:
-   ```powershell
-   # Default Steam install path:
-   Expand-Archive "bin\Debug\net6.0\StardewMCP 1.0.0.zip" `
-     -DestinationPath "C:\Program Files (x86)\Steam\steamapps\common\Stardew Valley\Mods\"
+   ```bash
+   # Linux:
+   cp -r mods/StardewMCP ~/.steam/steam/steamapps/common/Stardew\ Valley/Mods/
    ```
 
-4. **Launch Stardew Valley through SMAPI** (run `StardewModdingAPI.exe`, not `Stardew Valley.exe`). You should see `[StardewMCP]` listed in the SMAPI console.
+   > Alternatively, build from source: see [Hunter-Thompson/stardew-mcp](https://github.com/Hunter-Thompson/stardew-mcp) and `WORKFLOW.md §7` for build notes.
 
-5. **Verify the WebSocket is live** (after loading a save):
+3. **Launch Stardew Valley through SMAPI** (run `StardewModdingAPI.exe`, not `Stardew Valley.exe`). You should see `[StardewMCP]` listed in the SMAPI console.
+
+4. **Verify the WebSocket is live** (after loading a save):
    ```python
    python -c "
    import websockets.sync.client as ws
@@ -210,27 +271,6 @@ Both `--live` mode and the live Claude Desktop MCP tools require the **stardew-m
 
 ---
 
-## LLM Integration
-
-`output/coach_prompt.txt` is written on every run and can be sent to any cloud LLM:
-
-```python
-import anthropic
-from pathlib import Path
-
-client = anthropic.Anthropic()
-prompt = Path("output/coach_prompt.txt").read_text(encoding="utf-8")
-
-response = client.messages.create(
-    model="claude-opus-4-6",
-    max_tokens=1024,
-    messages=[{"role": "user", "content": prompt}]
-)
-print(response.content[0].text)
-```
-
----
-
 ## Output Files
 
 All generated files land in `output/` and are gitignored (recreated on each run):
@@ -238,7 +278,6 @@ All generated files land in `output/` and are gitignored (recreated on each run)
 | File | Description |
 |---|---|
 | `output/morning_brief.json` | Structured game state as JSON (grouped: `daily`, `progress`, `collections`, `profile`, `community_center`) |
-| `output/coach_prompt.txt` | LLM-ready coaching prompt |
 | `output/Stardew_Save_Attributes.xlsx` | Full XML attribute dump (from `parse_save.py`) |
 
 ---
@@ -267,8 +306,36 @@ See [WORKFLOW.md](WORKFLOW.md) for full architecture documentation including:
 - Pending enhancements backlog
 - Development workflow and branching strategy
 
-## Third Party Github Sources
+## Third-Party Sources
 
-  - https://github.com/MateusAquino/stardewids/tree/main
-  - https://github.com/Hunter-Thompson/stardew-mcp/tree/main
-  
+This project uses data and tools from:
+
+- **[SMAPI](https://github.com/Pathoschild/SMAPI)** (Pathoschild) — LGPL v3 — Stardew Valley modding API
+- **[stardewids](https://github.com/MateusAquino/stardewids)** (MateusAquino) — MIT — item ID-to-name mappings
+- **[stardew-mcp](https://github.com/Hunter-Thompson/stardew-mcp)** (Hunter-Thompson) — SMAPI WebSocket mod
+
+See [THIRD_PARTY.md](THIRD_PARTY.md) for full attribution and license details.
+
+## FAQ & Troubleshooting
+
+Having issues? Check the [FAQ](FAQ.md) for solutions to common problems including setup issues, WebSocket connection failures, empty game state, and Claude Desktop configuration.
+
+---
+
+## Token Usage Estimates
+
+Approximate token costs when using Claude Desktop with the stardew-esp MCP tools:
+
+| Component | Tokens | Notes |
+|---|---|---|
+| MCP server instructions | ~200 | System prompt, loaded once per conversation |
+| "Start Coaching" prompt | ~50 | Pre-filled user message |
+| `get_live_state` response | ~7,000 | Full morning brief JSON (~28 KB) |
+| `get_catchable_fish` response | ~500 | Fish list for current season/weather |
+| `get_bundle_status` response | ~1,500 | Community Center bundle progress |
+| `generate_coaching_prompt` response | ~1,500 | Structured coaching text (~5.7 KB) |
+| Claude's coaching response | ~500–1,000 | Depends on complexity of advice |
+
+**Typical first interaction (Start Coaching):** ~10,000–11,000 tokens
+
+This assumes Claude calls `get_live_state` + `get_catchable_fish` + `get_bundle_status` to build a full daily briefing. Follow-up questions within the same conversation are cheaper since context is already loaded.

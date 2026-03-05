@@ -8,6 +8,7 @@
 5. [Save File Profiles](#5-save-file-profiles)
 6. [Save File Format Findings](#6-save-file-format-findings)
 7. [Agent Component Reference](#7-agent-component-reference)
+7b. [Setup Automation](#7b-setup-automation)
 8. [Development Workflow](#8-development-workflow)
 9. [Pending Enhancements](#9-pending-enhancements)
 
@@ -49,7 +50,8 @@ Stardew_Valley_ESP/
 │   └── stardew_mcp_server.py   # MCP server for Claude Desktop
 │
 ├── scripts/                    # Utility / analysis scripts
-│   └── parse_save.py           # XML → Excel attribute dumper
+│   ├── parse_save.py           # XML → Excel attribute dumper
+│   └── configure_mcp.py        # Claude Desktop MCP auto-configurator
 │
 ├── saves/                      # Stardew Valley save folders (gitignored content)
 │   ├── Tolkien_432258440/      # Beginner save profile (Day 2, Spring, Year 1)
@@ -61,10 +63,16 @@ Stardew_Valley_ESP/
 │   ├── coach_prompt.txt        # LLM-ready coaching prompt (re-created each run)
 │   └── Stardew_Save_Attributes.xlsx  # Full XML attribute dump (from parse_save.py)
 │
-├── stardew-mcp/                # Cloned SMAPI mod source (not committed — clone separately)
-│   └── mod/StardewMCP/         # C# mod project (build target)
+├── mods/                       # Pre-built SMAPI mods for easy installation
+│   └── StardewMCP/             # stardew-mcp mod (3 files: DLL, manifest, websocket-sharp)
 │
-├── commit_summaries/           # Per-commit documentation
+├── releases/                   # Release artifacts (versioned)
+│   └── version_dev1/           # DEV1 release
+│       ├── setup.bat           # Windows one-click setup
+│       ├── setup.sh            # macOS/Linux one-click setup
+│       └── requirements.txt    # Python dependencies
+│
+├── THIRD_PARTY.md              # Third-party attribution and licenses
 ├── WORKFLOW.md                 # This document
 └── README.md
 ```
@@ -512,7 +520,7 @@ foreach (var _ in Game1.player.cookingRecipes.Keys) totalCookingRecipes++;
 
 ### stardew_mcp_server.py — MCP Server for Claude Desktop
 
-Stdio-based MCP server using `FastMCP`. Exposes seven tools:
+Stdio-based MCP server using `FastMCP`. Exposes seven tools and one prompt:
 
 | Tool | Data source | Notes |
 |---|---|---|
@@ -529,6 +537,8 @@ Configure via environment variables in `claude_desktop_config.json`:
 - `STARDEW_SAVES_DIR` (default: `%APPDATA%\StardewValley\Saves`)
 - `STARDEW_COACH_MODEL` (default: `claude-opus-4-6`) — model used by `run_coaching_agent`
 - `ANTHROPIC_API_KEY` — optional; only needed for `run_coaching_agent`
+
+**Prompt:** `start_coaching` — pre-fills a coaching request that triggers a full daily briefing. Users click "+" in Claude Desktop and select it. Approximate token cost for the first interaction: ~10,000–11,000 tokens.
 
 **Agent behaviour:** For complex planning requests, Claude Desktop calls `generate_coaching_prompt` to load full game context and then reasons through the plan itself. `run_coaching_agent` is only invoked if the user explicitly requests it.
 
@@ -594,6 +604,34 @@ Prompt is ~2,000–3,000 tokens; recommended minimum model context window: **8,1
 - Debounces watchdog events with a 3-second window + 1.5-second write delay
 - `_run_analysis(today, yesterday)` — shared pipeline used by both save-file and live modes
 - `live_once(url)` / `live_watch(url)` — live WebSocket run modes using `LiveAdapter`
+
+---
+
+## 7b. Setup Automation
+
+### One-Click Setup (`releases/version_dev1/setup.bat` / `setup.sh`)
+
+The setup scripts automate the entire installation process:
+
+1. **Python check** — verifies Python 3.10+ is available
+2. **Virtual environment** — creates `.venv` and installs dependencies from `releases/version_dev1/requirements.txt`
+3. **Claude Desktop** — installs if missing (`winget` on Windows, `brew`/`dpkg` on macOS/Linux)
+4. **MCP configuration** — runs `scripts/configure_mcp.py` to merge the `stardew-esp` MCP server entry into Claude Desktop's config
+5. **SMAPI** — downloads and runs the latest SMAPI installer from GitHub if not present
+6. **StardewMCP mod** — copies the bundled pre-built mod from `mods/StardewMCP/` to the game's Mods folder
+
+### MCP Auto-Configurator (`scripts/configure_mcp.py`)
+
+Cross-platform helper that:
+- Locates `claude_desktop_config.json` per platform (Windows: `%APPDATA%\Claude\`, macOS: `~/Library/Application Support/Claude/`, Linux: `~/.config/Claude/`)
+- Reads existing config or starts with empty `{}`
+- Merges `mcpServers.stardew-esp` entry with auto-detected Python path, project path, and saves directory
+- Preserves all other existing MCP server entries
+- Can be run standalone: `python scripts/configure_mcp.py`
+
+### Bundled Mod (`mods/StardewMCP/`)
+
+Pre-built stardew-mcp SMAPI mod (3 files: `StardewMCP.dll`, `manifest.json`, `websocket-sharp.dll`). Eliminates the need for users to install .NET 6 SDK and build from source.
 
 ---
 
