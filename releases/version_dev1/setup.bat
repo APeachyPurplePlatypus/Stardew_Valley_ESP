@@ -14,11 +14,27 @@ echo.
 echo [1/6] Checking Python...
 python --version >nul 2>&1
 if errorlevel 1 (
-    echo   ERROR: Python is not installed or not in PATH.
-    echo   Please install Python 3.10+ from https://www.python.org/downloads/
-    echo   Make sure to check "Add Python to PATH" during installation.
-    pause
-    exit /b 1
+    echo   Python not found. Installing via winget...
+    winget install Python.Python.3.12 --accept-package-agreements --accept-source-agreements
+    if errorlevel 1 (
+        echo   ERROR: Failed to install Python via winget.
+        echo   Please install Python 3.10+ manually from https://www.python.org/downloads/
+        echo   Make sure to check "Add Python to PATH" during installation.
+        pause
+        exit /b 1
+    )
+    echo   Python installed. Refreshing PATH...
+    :: Refresh PATH so python is available in this session
+    for /f "tokens=2*" %%a in ('reg query "HKCU\Environment" /v Path 2^>nul') do set "USER_PATH=%%b"
+    for /f "tokens=2*" %%a in ('reg query "HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v Path 2^>nul') do set "SYS_PATH=%%b"
+    set "PATH=!USER_PATH!;!SYS_PATH!"
+    python --version >nul 2>&1
+    if errorlevel 1 (
+        echo   WARNING: Python was installed but is not yet in PATH.
+        echo   Please close this window, open a new Command Prompt, and run setup again.
+        pause
+        exit /b 1
+    )
 )
 for /f "tokens=2 delims= " %%v in ('python --version 2^>^&1') do set PYVER=%%v
 echo   Found Python %PYVER%
@@ -75,18 +91,21 @@ for %%d in (
     "D:\SteamLibrary\steamapps\common\Stardew Valley"
     "E:\Steam\steamapps\common\Stardew Valley"
     "E:\SteamLibrary\steamapps\common\Stardew Valley"
+    "G:\SteamLibrary\steamapps\common\Stardew Valley"
 ) do (
     if exist "%%~d\Stardew Valley.exe" (
         set "SV_DIR=%%~d"
     )
 )
 
-if "!SV_DIR!"=="" (
-    echo   Could not auto-detect Stardew Valley install path.
-)
-:: Prompt outside the if-block so paths with parentheses don't break parsing
-if "!SV_DIR!"=="" set /p SV_DIR="  Enter your Stardew Valley install folder: "
+if not "!SV_DIR!"=="" goto :sv_found
 
+echo   Could not auto-detect Stardew Valley install path.
+set /p SV_DIR="  Enter your Stardew Valley install folder: "
+:: Strip surrounding quotes if user included them
+set "SV_DIR=!SV_DIR:"=!"
+
+:sv_found
 if not exist "!SV_DIR!\Stardew Valley.exe" (
     echo   WARNING: Stardew Valley not found at: !SV_DIR!
     echo   Skipping SMAPI and mod installation.
@@ -98,64 +117,65 @@ echo   Stardew Valley found at: !SV_DIR!
 :: Check SMAPI
 if exist "!SV_DIR!\StardewModdingAPI.exe" (
     echo   SMAPI is already installed.
-) else (
-    echo   SMAPI not found. Downloading latest installer...
+    goto :install_mod
+)
 
-    :: Download latest SMAPI release from GitHub
-    set "SMAPI_ZIP=%TEMP%\SMAPI-latest.zip"
-    set "SMAPI_DIR=%TEMP%\SMAPI-install"
+echo   SMAPI not found. Downloading latest installer...
 
-    :: Use PowerShell to get latest release URL and download
-    powershell -Command ^
-        "$release = Invoke-RestMethod -Uri 'https://api.github.com/repos/Pathoschild/SMAPI/releases/latest'; " ^
-        "$asset = $release.assets | Where-Object { $_.name -like '*installer*.zip' } | Select-Object -First 1; " ^
-        "if ($asset) { " ^
-        "  Write-Host \"  Downloading $($asset.name)...\"; " ^
-        "  Invoke-WebRequest -Uri $asset.browser_download_url -OutFile '%SMAPI_ZIP%'; " ^
-        "  Write-Host '  Download complete.'" ^
-        "} else { " ^
-        "  Write-Host '  ERROR: Could not find SMAPI installer in latest release.'; " ^
-        "  exit 1 " ^
-        "}"
+:: Download latest SMAPI release from GitHub
+set "SMAPI_ZIP=%TEMP%\SMAPI-latest.zip"
+:: Extract outside %TEMP% — SMAPI installer refuses to run from temp paths
+set "SMAPI_DIR=%USERPROFILE%\SMAPI-install"
 
-    if errorlevel 1 (
-        echo   WARNING: Failed to download SMAPI.
-        echo   Please install SMAPI manually from: https://smapi.io
-        goto :skip_smapi
-    )
+powershell -Command ^
+    "$release = Invoke-RestMethod -Uri 'https://api.github.com/repos/Pathoschild/SMAPI/releases/latest'; " ^
+    "$asset = $release.assets | Where-Object { $_.name -like '*installer*.zip' } | Select-Object -First 1; " ^
+    "if ($asset) { " ^
+    "  Write-Host \"  Downloading $($asset.name)...\"; " ^
+    "  Invoke-WebRequest -Uri $asset.browser_download_url -OutFile '%SMAPI_ZIP%'; " ^
+    "  Write-Host '  Download complete.'" ^
+    "} else { " ^
+    "  Write-Host '  ERROR: Could not find SMAPI installer in latest release.'; " ^
+    "  exit 1 " ^
+    "}"
 
-    :: Extract and run installer
-    if exist "!SMAPI_DIR!" rmdir /s /q "!SMAPI_DIR!"
-    powershell -Command "Expand-Archive -Path '%SMAPI_ZIP%' -DestinationPath '%SMAPI_DIR%' -Force"
+if errorlevel 1 (
+    echo   WARNING: Failed to download SMAPI.
+    echo   Please install SMAPI manually from: https://smapi.io
+    goto :skip_smapi
+)
 
-    echo.
-    echo   SMAPI installer downloaded and extracted.
-    echo   Running SMAPI installer — follow the prompts:
-    echo.
+:: Extract and run installer
+if exist "!SMAPI_DIR!" rmdir /s /q "!SMAPI_DIR!"
+powershell -Command "Expand-Archive -Path '%SMAPI_ZIP%' -DestinationPath '%SMAPI_DIR%' -Force"
 
-    :: Find and run the installer
-    for /r "!SMAPI_DIR!" %%f in (install*.exe) do (
-        "%%f"
-        goto :smapi_installed
-    )
-    :: If no exe found, try the bat
-    for /r "!SMAPI_DIR!" %%f in (install*.bat) do (
-        call "%%f"
-        goto :smapi_installed
-    )
+echo.
+echo   SMAPI installer downloaded and extracted.
+echo   Running SMAPI installer — follow the prompts:
+echo.
+
+:: Find the SMAPI installer exe directly (skip the wrapper .bat)
+set "SMAPI_EXE="
+for /f "delims=" %%f in ('dir /s /b "!SMAPI_DIR!\SMAPI.Installer.exe" 2^>nul') do set "SMAPI_EXE=%%f"
+if not defined SMAPI_EXE for /f "delims=" %%f in ('dir /s /b "!SMAPI_DIR!\install*.exe" 2^>nul') do set "SMAPI_EXE=%%f"
+
+if not defined SMAPI_EXE (
     echo   WARNING: Could not find SMAPI installer executable.
     echo   Please install SMAPI manually from: https://smapi.io
     goto :skip_smapi
-
-    :smapi_installed
-    echo   SMAPI installation complete.
-
-    :: Clean up
-    del "!SMAPI_ZIP!" 2>nul
-    rmdir /s /q "!SMAPI_DIR!" 2>nul
 )
 
+start "SMAPI Installer" /wait "!SMAPI_EXE!"
+goto :smapi_installed
+
+:smapi_installed
+echo   SMAPI installation complete.
+:: Clean up
+del "!SMAPI_ZIP!" 2>nul
+rmdir /s /q "!SMAPI_DIR!" 2>nul
+
 :: ── Step 6: Install StardewMCP mod ───────────────────────────
+:install_mod
 echo.
 echo [6/6] Installing StardewMCP mod...
 set "MODS_DIR=!SV_DIR!\Mods\StardewMCP"
@@ -208,4 +228,7 @@ echo.
 echo   Optional: Set ANTHROPIC_API_KEY environment variable to enable
 echo   the run_coaching_agent tool in Claude Desktop.
 echo.
-pause
+echo   This window is running the MCP server. Closing it will stop the server.
+echo   Press Ctrl+C or close this window to stop.
+echo.
+python agents\stardew_mcp_server.py
